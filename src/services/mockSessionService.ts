@@ -2,9 +2,9 @@ import { Participant, Session, SessionStep, SessionStepHistory } from '@/types/s
 
 // Mock participants database
 const mockParticipants: Participant[] = [
-  { id: 'P001', name: 'Alex Johnson', age: 14, lastSession: '2024-11-15' },
-  { id: 'P002', name: 'Sam Chen', age: 12, lastSession: '2024-11-20' },
-  { id: 'P003', name: 'Jordan Lee', age: 15, lastSession: '2024-11-28' },
+  { id: '001', name: 'Alex Johnson', age: 14, lastSession: '2024-11-15' },
+  { id: '002', name: 'Sam Chen', age: 12, lastSession: '2024-11-20' },
+  { id: '003', name: 'Jordan Lee', age: 15, lastSession: '2024-11-28' },
 ];
 
 // Mock previous sessions
@@ -12,7 +12,7 @@ const mockPreviousSessions: Session[] = [
   {
     id: 'S001',
     config: {
-      participantId: 'P001',
+      participantId: '001',
       sessionDate: '2024-11-15',
       protocol: 'DMN-NFB',
       psychopyConfig: {
@@ -47,14 +47,14 @@ export const sessionService = {
   },
 
   // Create new participant
-  createParticipant: async (participant: Omit<Participant, 'id'>): Promise<Participant> => {
+  createParticipant: async (participant: Participant): Promise<Participant> => {
     await new Promise(resolve => setTimeout(resolve, 400));
-    const newParticipant = {
-      ...participant,
-      id: `P${String(mockParticipants.length + 1).padStart(3, '0')}`,
-    };
-    mockParticipants.push(newParticipant);
-    return newParticipant;
+    // Check if ID already exists
+    if (mockParticipants.some(p => p.id === participant.id)) {
+      throw new Error('Participant ID already exists');
+    }
+    mockParticipants.push(participant);
+    return participant;
   },
 
   // Get previous sessions

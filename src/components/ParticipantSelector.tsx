@@ -24,7 +24,7 @@ export function ParticipantSelector({ onParticipantSelect, selectedParticipantId
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [loading, setLoading] = useState(true);
   const [showNewForm, setShowNewForm] = useState(false);
-  const [newParticipant, setNewParticipant] = useState({ name: '', age: '' });
+  const [newParticipantId, setNewParticipantId] = useState('');
   const [creating, setCreating] = useState(false);
   const { toast } = useToast();
 
@@ -48,10 +48,20 @@ export function ParticipantSelector({ onParticipantSelect, selectedParticipantId
   };
 
   const handleCreateParticipant = async () => {
-    if (!newParticipant.name || !newParticipant.age) {
+    if (!newParticipantId.trim()) {
       toast({
         title: 'Validation Error',
-        description: 'Please fill in all fields',
+        description: 'Please enter a Participant ID',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Check if ID already exists
+    if (participants.some(p => p.id === newParticipantId.trim())) {
+      toast({
+        title: 'Validation Error',
+        description: 'Participant ID already exists',
         variant: 'destructive',
       });
       return;
@@ -60,16 +70,17 @@ export function ParticipantSelector({ onParticipantSelect, selectedParticipantId
     setCreating(true);
     try {
       const created = await sessionService.createParticipant({
-        name: newParticipant.name,
-        age: parseInt(newParticipant.age),
+        id: newParticipantId.trim(),
+        name: '',
+        age: 0,
       });
       setParticipants([...participants, created]);
       onParticipantSelect(created.id);
       setShowNewForm(false);
-      setNewParticipant({ name: '', age: '' });
+      setNewParticipantId('');
       toast({
         title: 'Participant created',
-        description: `${created.name} (${created.id}) added successfully`,
+        description: `${created.id} added successfully`,
       });
     } catch (error) {
       toast({
@@ -101,7 +112,7 @@ export function ParticipantSelector({ onParticipantSelect, selectedParticipantId
               <SelectContent className="bg-popover border-border">
                 {participants.map(p => (
                   <SelectItem key={p.id} value={p.id}>
-                    {p.id} - {p.name} (Age: {p.age})
+                    {p.id}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -120,23 +131,13 @@ export function ParticipantSelector({ onParticipantSelect, selectedParticipantId
           ) : (
             <div className="space-y-3 p-4 rounded-lg bg-secondary/50 border border-border">
               <div className="space-y-2">
-                <Label htmlFor="newName">Name</Label>
+                <Label htmlFor="newParticipantId">Participant ID</Label>
                 <Input
-                  id="newName"
-                  value={newParticipant.name}
-                  onChange={e => setNewParticipant({ ...newParticipant, name: e.target.value })}
-                  placeholder="Enter participant name"
-                  className="bg-input border-border"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="newAge">Age</Label>
-                <Input
-                  id="newAge"
+                  id="newParticipantId"
                   type="number"
-                  value={newParticipant.age}
-                  onChange={e => setNewParticipant({ ...newParticipant, age: e.target.value })}
-                  placeholder="Enter age"
+                  value={newParticipantId}
+                  onChange={e => setNewParticipantId(e.target.value)}
+                  placeholder="Enter Participant ID (e.g., 001)"
                   className="bg-input border-border"
                 />
               </div>
@@ -153,7 +154,7 @@ export function ParticipantSelector({ onParticipantSelect, selectedParticipantId
                   variant="outline"
                   onClick={() => {
                     setShowNewForm(false);
-                    setNewParticipant({ name: '', age: '' });
+                    setNewParticipantId('');
                   }}
                   className="border-border"
                 >
