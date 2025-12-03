@@ -8,7 +8,7 @@ import { PsychoPyConfig, SessionConfig, SessionStepHistory, SessionStep } from '
 import { sessionService } from '@/services/mockSessionService';
 import { useToast } from '@/hooks/use-toast';
 
-const sessionSteps: SessionStep[] = [
+export const sessionSteps: SessionStep[] = [
   'create',
   'setup',
   '2vol',
@@ -29,6 +29,9 @@ export default function RunScan() {
     feedbackCondition: '15min',
   });
   const [isRunning, setIsRunning] = useState(false);
+  const [sessionInitialized, setSessionInitialized] = useState(false);
+  const [stepExecutionCounts, setStepExecutionCounts] = useState<Map<SessionStep, number>>(new Map());
+  const [runningSteps, setRunningSteps] = useState<Set<SessionStep>>(new Set());
   const [stepHistory, setStepHistory] = useState<SessionStepHistory[]>([]);
   const { toast } = useToast();
 
@@ -51,8 +54,13 @@ export default function RunScan() {
     }
   };
 
-  const runSessionSteps = async () => {
-    for (const step of sessionSteps) {
+  const handleRunStep = async (step: SessionStep) => {
+    if (runningSteps.has(step)) return;
+
+    setRunningSteps(prev => new Set(prev).add(step));
+    setIsRunning(true);
+
+    try {
       // Start step
       const startedStep = await sessionService.startStep(step);
       setStepHistory(prev => [...prev, startedStep]);
@@ -68,48 +76,140 @@ export default function RunScan() {
         prev.map((s, i) => i === prev.length - 1 ? completedStep : s)
       );
 
+      // Increment execution count for this step
+      setStepExecutionCounts(prev => {
+        const newCounts = new Map(prev);
+        const currentCount = newCounts.get(step) || 0;
+        newCounts.set(step, currentCount + 1);
+        return newCounts;
+      });
+
+      setIsRunning(false);
+
+      setRunningSteps(prev => {
+        const next = new Set(prev);
+        next.delete(step);
+        return next;
+      });
+
       toast({
         title: `${step} completed`,
         description: completedStep.message,
       });
-
-      // Small delay between steps
-      await new Promise(resolve => setTimeout(resolve, 500));
+    } catch (error) {
+      setRunningSteps(prev => {
+        const next = new Set(prev);
+        next.delete(step);
+        return next;
+      });
+      setIsRunning(false);
+      toast({
+        title: 'Step error',
+        description: `An error occurred during ${step} execution`,
+        variant: 'destructive',
+      });
     }
   };
 
-  const handleStartSession = async () => {
-    if (!sessionConfig) return;
+  const handleRunAllRemaining = async () => {
+    // Run all steps that haven't been executed at least once
+    const remainingSteps = sessionSteps.filter(step =>
+      !stepExecutionCounts.has(step) && !runningSteps.has(step)
+    );
+
+    if (remainingSteps.length === 0) return;
 
     setIsRunning(true);
-    setStepHistory([]);
 
-    toast({
-      title: 'Session started',
-      description: `Running session for participant ${sessionConfig.participantId}`,
-    });
+    for (const step of remainingSteps) {
+      // Mark step as running
+      setRunningSteps(prev => new Set(prev).add(step));
 
-    try {
-      await runSessionSteps();
+      try {
+        // Start step
+        const startedStep = await sessionService.startStep(step);
+        setStepHistory(prev => [...prev, startedStep]);
 
+        toast({
+          title: `Starting ${step}`,
+          description: 'Executing step...',
+        });
+
+        // Simulate step execution
+        const completedStep = await sessionService.completeStep(step);
+        setStepHistory(prev =>
+          prev.map((s, i) => i === prev.length - 1 ? completedStep : s)
+        );
+
+        // Increment execution count for this step
+        setStepExecutionCounts(prev => {
+          const newCounts = new Map(prev);
+          const currentCount = newCounts.get(step) || 0;
+          newCounts.set(step, currentCount + 1);
+          return newCounts;
+        });
+
+        setRunningSteps(prev => {
+          const next = new Set(prev);
+          next.delete(step);
+          return next;
+        });
+
+        toast({
+          title: `${step} completed`,
+          description: completedStep.message,
+        });
+
+        // Small delay between steps
+        await new Promise(resolve => setTimeout(resolve, 500));
+      } catch (error) {
+        setRunningSteps(prev => {
+          const next = new Set(prev);
+          next.delete(step);
+          return next;
+        });
+        toast({
+          title: 'Step error',
+          description: `An error occurred during ${step} execution`,
+          variant: 'destructive',
+        });
+      }
+    }
+
+    setIsRunning(false);
+
+    // Check if all steps have been executed at least once
+    const initialExecutedCount = stepExecutionCounts.size;
+    if (initialExecutedCount + remainingSteps.length === sessionSteps.length) {
       toast({
         title: 'Session completed',
         description: 'All steps executed successfully',
       });
-    } catch (error) {
-      toast({
-        title: 'Session error',
-        description: 'An error occurred during session execution',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsRunning(false);
     }
+  };
+
+  const handleStartSession = () => {
+    if (!sessionConfig) return;
+
+    setSessionInitialized(true);
+    setIsRunning(false);
+    setStepHistory([]);
+    setStepExecutionCounts(new Map());
+    setRunningSteps(new Set());
+
+    toast({
+      title: 'Session initialized',
+      description: `Session ready for participant ${sessionConfig.participantId}. Select steps to execute.`,
+    });
   };
 
   const handleReset = () => {
     setSessionConfig(null);
     setStepHistory([]);
+    setSessionInitialized(false);
+    setStepExecutionCounts(new Map());
+    setRunningSteps(new Set());
+    setIsRunning(false);
     setPsychopyConfig({
       runNumber: 1,
       displayFeedback: 'Feedback',
@@ -152,7 +252,13 @@ export default function RunScan() {
             <SessionControls
               config={sessionConfig}
               isRunning={isRunning}
+              sessionInitialized={sessionInitialized}
+              stepExecutionCounts={stepExecutionCounts}
+              runningSteps={runningSteps}
+              sessionSteps={sessionSteps}
               onStart={handleStartSession}
+              onRunStep={handleRunStep}
+              onRunAllRemaining={handleRunAllRemaining}
               onReset={handleReset}
             />
 
@@ -161,7 +267,7 @@ export default function RunScan() {
 
           {/* Right Column - Preview */}
           <div>
-            <BrainScanPreview isActive={isRunning} />
+            <BrainScanPreview isActive={isRunning || sessionInitialized} />
           </div>
         </div>
       </div>
