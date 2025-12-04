@@ -9,7 +9,6 @@ import { sessionService } from '@/services/mockSessionService';
 import { ArrowLeft, Download, Calendar, Clock, User } from 'lucide-react';
 import { StepHistory } from '@/components/StepHistory';
 import { BrainActivationMap } from '@/components/BrainActivationMap';
-import { SessionAnalytics } from '@/components/SessionAnalytics';
 
 export default function SessionDetail() {
   const { sessionId } = useParams();
@@ -36,7 +35,7 @@ export default function SessionDetail() {
 
   const handleExport = (format: 'json' | 'csv') => {
     if (!session) return;
-    
+
     if (format === 'json') {
       const dataStr = JSON.stringify(session, null, 2);
       const dataBlob = new Blob([dataStr], { type: 'application/json' });
@@ -56,12 +55,12 @@ export default function SessionDetail() {
         step.duration?.toString() || '',
         step.message || ''
       ]);
-      
+
       const csvContent = [
         headers.join(','),
         ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
       ].join('\n');
-      
+
       const dataBlob = new Blob([csvContent], { type: 'text/csv' });
       const url = URL.createObjectURL(dataBlob);
       const link = document.createElement('a');
@@ -129,7 +128,7 @@ export default function SessionDetail() {
               <p className="text-muted-foreground mt-1">Detailed analysis and reports</p>
             </div>
           </div>
-          
+
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => handleExport('json')}>
               <Download className="mr-2 h-4 w-4" />
@@ -144,7 +143,7 @@ export default function SessionDetail() {
 
         {/* Session Overview */}
         <Card className="p-6 bg-card border-border">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="flex items-center gap-3">
               <User className="h-5 w-5 text-primary" />
               <div>
@@ -152,7 +151,7 @@ export default function SessionDetail() {
                 <div className="font-semibold text-foreground">{session.config.participantId}</div>
               </div>
             </div>
-            
+
             <div className="flex items-center gap-3">
               <Calendar className="h-5 w-5 text-primary" />
               <div>
@@ -160,7 +159,7 @@ export default function SessionDetail() {
                 <div className="font-semibold text-foreground">{formatDate(session.config.sessionDate)}</div>
               </div>
             </div>
-            
+
             <div className="flex items-center gap-3">
               <Clock className="h-5 w-5 text-primary" />
               <div>
@@ -170,27 +169,17 @@ export default function SessionDetail() {
                 </div>
               </div>
             </div>
-            
-            <div className="flex items-center gap-3">
-              <div>
-                <div className="text-sm text-muted-foreground">Protocol</div>
-                <Badge variant="outline" className="border-primary/30 text-primary mt-1">
-                  {session.config.protocol}
-                </Badge>
-              </div>
-            </div>
           </div>
         </Card>
 
         {/* Detailed Tabs */}
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="steps">Step History</TabsTrigger>
             <TabsTrigger value="brain">Brain Activation</TabsTrigger>
-            <TabsTrigger value="analytics">Analytics</TabsTrigger>
           </TabsList>
-          
+
           <TabsContent value="overview" className="space-y-6">
             <Card className="p-6 bg-card border-border">
               <h3 className="text-lg font-semibold mb-4 text-foreground">Session Configuration</h3>
@@ -213,7 +202,7 @@ export default function SessionDetail() {
                 </div>
               </div>
             </Card>
-            
+
             <Card className="p-6 bg-card border-border">
               <h3 className="text-lg font-semibold mb-4 text-foreground">Session Summary</h3>
               <div className="space-y-2">
@@ -249,17 +238,13 @@ export default function SessionDetail() {
               </div>
             </Card>
           </TabsContent>
-          
+
           <TabsContent value="steps">
             <StepHistory history={session.stepHistory} />
           </TabsContent>
-          
+
           <TabsContent value="brain">
             <BrainActivationMap sessionId={session.id} />
-          </TabsContent>
-          
-          <TabsContent value="analytics">
-            <SessionAnalytics session={session} />
           </TabsContent>
         </Tabs>
       </div>

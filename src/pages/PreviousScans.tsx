@@ -131,7 +131,6 @@ export default function PreviousScans() {
                         Date
                       </div>
                     </TableHead>
-                    <TableHead className="text-foreground">Protocol</TableHead>
                     <TableHead className="text-foreground">
                       <div className="flex items-center gap-2">
                         <Clock className="h-4 w-4" />
@@ -144,15 +143,15 @@ export default function PreviousScans() {
                 </TableHeader>
                 <TableBody>
                   {sessions.map(session => (
-                    <TableRow 
-                      key={session.id} 
+                    <TableRow
+                      key={session.id}
                       className="border-border cursor-pointer hover:bg-secondary/50"
                       onClick={() => handleSessionClick(session.id)}
                     >
                       <TableCell onClick={(e) => e.stopPropagation()}>
                         <Checkbox
                           checked={selectedSessions.includes(session.id)}
-                          onCheckedChange={(checked) => 
+                          onCheckedChange={(checked) =>
                             handleSelectSession(session.id, checked as boolean)
                           }
                         />
@@ -170,11 +169,6 @@ export default function PreviousScans() {
                             </div>
                           )}
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="border-primary/30 text-primary">
-                          {session.config.protocol}
-                        </Badge>
                       </TableCell>
                       <TableCell>
                         {calculateDuration(session.startTime, session.endTime)}
