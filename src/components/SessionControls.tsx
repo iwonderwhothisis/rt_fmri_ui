@@ -64,8 +64,8 @@ export function SessionControls({
         </div>
       )}
 
-      <div className="flex gap-3">
-        {!sessionInitialized ? (
+      {!sessionInitialized ? (
+        <div className="flex gap-3">
           <Button
             onClick={onStart}
             disabled={!isConfigValid}
@@ -75,31 +75,18 @@ export function SessionControls({
             <Play className="mr-2 h-5 w-5" />
             Start Session
           </Button>
-        ) : null}
-
-        <Button
-          onClick={onReset}
-          disabled={isRunning}
-          variant="outline"
-          className={sessionInitialized ? "flex-1" : ""}
-          size="lg"
-        >
-          {sessionInitialized ? (
-            <>
-              <Check className="mr-2 h-4 w-4" />
-              Finish
-            </>
-          ) : (
-            <>
-              <RotateCcw className="mr-2 h-4 w-4" />
-              Reset
-            </>
-          )}
-        </Button>
-      </div>
-
-      {sessionInitialized && (
-        <div className="mt-6 space-y-4">
+          <Button
+            onClick={onReset}
+            disabled={isRunning}
+            variant="outline"
+            size="lg"
+          >
+            <RotateCcw className="mr-2 h-4 w-4" />
+            Reset
+          </Button>
+        </div>
+      ) : (
+        <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h4 className="text-sm font-semibold text-foreground">Session Steps</h4>
             <span className="text-xs text-muted-foreground">
@@ -157,6 +144,19 @@ export function SessionControls({
                 </Button>
               );
             })}
+          </div>
+
+          <div className="pt-4 border-t border-border">
+            <Button
+              onClick={onReset}
+              disabled={isRunning}
+              variant="outline"
+              className="w-full hover:bg-gradient-to-r hover:from-primary hover:to-accent hover:text-primary-foreground hover:border-transparent transition-all duration-300"
+              size="lg"
+            >
+              <Check className="mr-2 h-4 w-4" />
+              Finish Session
+            </Button>
           </div>
         </div>
       )}

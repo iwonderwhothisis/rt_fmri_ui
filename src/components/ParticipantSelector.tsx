@@ -26,16 +26,26 @@ import {
 } from '@/components/ui/tooltip';
 import { Participant } from '@/types/session';
 import { sessionService } from '@/services/mockSessionService';
-import { UserPlus, Loader2 } from 'lucide-react';
+import { UserPlus, Loader2, ArrowRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface ParticipantSelectorProps {
   onParticipantSelect: (participantId: string) => void;
   selectedParticipantId?: string;
   inline?: boolean;
+  showContinueButton?: boolean;
+  onContinue?: () => void;
+  continueDisabled?: boolean;
 }
 
-export function ParticipantSelector({ onParticipantSelect, selectedParticipantId, inline = false }: ParticipantSelectorProps) {
+export function ParticipantSelector({
+  onParticipantSelect,
+  selectedParticipantId,
+  inline = false,
+  showContinueButton = false,
+  onContinue,
+  continueDisabled = true,
+}: ParticipantSelectorProps) {
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [loading, setLoading] = useState(true);
   const [showNewForm, setShowNewForm] = useState(false);
@@ -221,14 +231,26 @@ export function ParticipantSelector({ onParticipantSelect, selectedParticipantId
           </div>
 
           {!showNewForm ? (
-            <Button
-              variant="outline"
-              className="w-full border-border hover:bg-secondary"
-              onClick={() => setShowNewForm(true)}
-            >
-              <UserPlus className="mr-2 h-4 w-4" />
-              Add New Participant
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="flex-1 border-border hover:bg-secondary"
+                onClick={() => setShowNewForm(true)}
+              >
+                <UserPlus className="mr-2 h-4 w-4" />
+                Add New Participant
+              </Button>
+              {showContinueButton && (
+                <Button
+                  onClick={onContinue}
+                  disabled={continueDisabled}
+                  className="bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Continue
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              )}
+            </div>
           ) : (
             <div className="space-y-3 p-4 rounded-lg bg-secondary/50 border border-border">
               <div className="space-y-2">

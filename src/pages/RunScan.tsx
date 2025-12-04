@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ParticipantSelector } from '@/components/ParticipantSelector';
-import { PsychoPyConfigComponent } from '@/components/PsychoPyConfig';
 import { SessionControls } from '@/components/SessionControls';
 import { StepHistory } from '@/components/StepHistory';
 import { BrainScanPreview } from '@/components/BrainScanPreview';
@@ -12,8 +11,6 @@ import { PsychoPyConfig, SessionConfig, SessionStepHistory, SessionStep, Session
 import { sessionService } from '@/services/mockSessionService';
 import { useToast } from '@/hooks/use-toast';
 import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { ArrowRight, CheckCircle2 } from 'lucide-react';
 
 export const sessionSteps: SessionStep[] = [
   'create',
@@ -52,7 +49,7 @@ export default function RunScan() {
   // Determine workflow step based on state
   const getCurrentWorkflowStep = (): WorkflowStep => {
     if (sessionInitialized) return 'execute';
-    if (sessionConfig?.participantId && sessionConfig?.psychopyConfig) return 'execute';
+    // Don't auto-advance from participant to execute - require button click
     if (sessionConfig?.participantId) return 'participant';
     if (murfiStarted && psychopyStarted) return 'participant';
     return 'initialize';
@@ -82,7 +79,7 @@ export default function RunScan() {
       participantId,
       sessionDate: new Date().toISOString().split('T')[0],
       protocol: 'DMN-NFB',
-      psychopyConfig,
+      psychopyConfig: psychopyConfig, // Keep existing config if any
     });
     setManualWorkflowStep(null);
   };
@@ -298,47 +295,28 @@ export default function RunScan() {
         )}
 
         {workflowStep === 'participant' && (
-          <div className="space-y-6">
-            <Card className="p-6 bg-card border-border">
-              <h2 className="text-xl font-semibold mb-4 text-foreground flex items-center gap-2">
-                <span className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold">
-                  2
-                </span>
-                Select Participant & Configure
-              </h2>
-              <p className="text-muted-foreground mb-6">
-                Choose an existing participant or create a new one, then configure PsychoPy settings.
-              </p>
-              <ParticipantSelector
-                onParticipantSelect={handleParticipantSelect}
-                selectedParticipantId={sessionConfig?.participantId}
-                inline={false}
-              />
-            </Card>
-
-            {sessionConfig?.participantId && (
-              <Card className="p-6 bg-card border-border">
-                <h3 className="text-lg font-semibold mb-4 text-foreground">PsychoPy Configuration</h3>
-                <PsychoPyConfigComponent
-                  config={psychopyConfig}
-                  onChange={handlePsychoPyConfigChange}
-                />
-                <div className="mt-6 flex justify-end">
-                  <Button
-                    onClick={() => {
-                      handleStartSession();
-                      setManualWorkflowStep('execute');
-                    }}
-                    disabled={!sessionConfig?.psychopyConfig}
-                    className="bg-primary hover:bg-primary/90"
-                  >
-                    Start Session & Continue
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                </div>
-              </Card>
-            )}
-          </div>
+          <Card className="p-6 bg-card border-border">
+            <h2 className="text-xl font-semibold mb-4 text-foreground flex items-center gap-2">
+              <span className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold">
+                2
+              </span>
+              Select Participant
+            </h2>
+            <p className="text-muted-foreground mb-6">
+              Choose an existing participant or create a new one to continue.
+            </p>
+            <ParticipantSelector
+              onParticipantSelect={handleParticipantSelect}
+              selectedParticipantId={sessionConfig?.participantId}
+              inline={false}
+              showContinueButton={true}
+              onContinue={() => {
+                handleStartSession();
+                setManualWorkflowStep('execute');
+              }}
+              continueDisabled={!sessionConfig?.participantId}
+            />
+          </Card>
         )}
 
         {workflowStep === 'execute' && (

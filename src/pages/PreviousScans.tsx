@@ -105,8 +105,7 @@ export default function PreviousScans() {
         const query = searchQuery.toLowerCase();
         const matchesSearch =
           session.id.toLowerCase().includes(query) ||
-          session.config.participantId.toLowerCase().includes(query) ||
-          session.config.protocol.toLowerCase().includes(query);
+          session.config.participantId.toLowerCase().includes(query);
         if (!matchesSearch) return false;
       }
 
@@ -161,7 +160,7 @@ export default function PreviousScans() {
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search sessions, participants, or protocols..."
+                placeholder="Search sessions or participants..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10 bg-input border-border"

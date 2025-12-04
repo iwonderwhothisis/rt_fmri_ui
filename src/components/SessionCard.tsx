@@ -99,10 +99,6 @@ export function SessionCard({ session, isSelected, onSelect }: SessionCardProps)
               <User className="h-3.5 w-3.5" />
               <span>{session.config.participantId}</span>
             </div>
-            <div className="flex items-center gap-1.5">
-              <Calendar className="h-3.5 w-3.5" />
-              <span>{formatDate(session.config.sessionDate)}</span>
-            </div>
           </div>
         </div>
         {onSelect && (
@@ -151,8 +147,11 @@ export function SessionCard({ session, isSelected, onSelect }: SessionCardProps)
           </div>
         </div>
         <div className="p-2 rounded-lg bg-secondary/30">
-          <div className="text-xs text-muted-foreground mb-1">Protocol</div>
-          <div className="text-sm font-semibold text-foreground">{session.config.protocol}</div>
+          <div className="text-xs text-muted-foreground mb-1">Date</div>
+          <div className="text-sm font-semibold text-foreground flex items-center gap-1">
+            <Calendar className="h-3.5 w-3.5" />
+            {formatDate(session.config.sessionDate)}
+          </div>
         </div>
       </div>
 
