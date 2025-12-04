@@ -25,15 +25,6 @@ export function BrainActivationMap({ sessionId }: BrainActivationMapProps) {
           </div>
         </div>
       </Card>
-
-      <Card className="p-6 bg-card border-border">
-        <h4 className="text-sm font-semibold text-foreground mb-4">Connectivity Patterns</h4>
-        <div className="bg-secondary/20 rounded-lg p-8 border border-border border-dashed">
-          <div className="text-center text-muted-foreground">
-            <p className="text-sm">Functional connectivity matrix visualization</p>
-          </div>
-        </div>
-      </Card>
     </div>
   );
 }
