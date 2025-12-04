@@ -40,12 +40,12 @@ export function ProgressTimeline({ history }: ProgressTimelineProps) {
   const formatTimestamp = (timestamp: string) => {
     const date = new Date(timestamp);
     return {
-      time: date.toLocaleTimeString('en-GB', {
+      time: date.toLocaleTimeString('en-US', {
         hour: '2-digit',
         minute: '2-digit',
         second: '2-digit',
       }),
-      date: date.toLocaleDateString('en-GB', {
+      date: date.toLocaleDateString('en-US', {
         month: 'short',
         day: 'numeric',
       }),

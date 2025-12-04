@@ -29,7 +29,7 @@ export function InitializeStep({
         Initialise Systems
       </h2>
       <p className="text-muted-foreground mb-6">
-        Start the required systems before proceeding with the session setup.
+        Start the required software before proceeding
       </p>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ParticipantSelector } from '@/components/ParticipantSelector';
+import { PsychoPyConfigComponent } from '@/components/PsychoPyConfig';
 import { SessionControls } from '@/components/SessionControls';
 import { StepHistory } from '@/components/StepHistory';
 import { BrainScanPreview } from '@/components/BrainScanPreview';
-import { FeedbackConfig } from '@/components/FeedbackConfig';
 import { WorkflowStepper, WorkflowStep } from '@/components/WorkflowStepper';
 import { SessionStatusDashboard } from '@/components/SessionStatusDashboard';
 import { InitializeStep } from '@/components/InitializeStep';
@@ -12,6 +12,8 @@ import { PsychoPyConfig, SessionConfig, SessionStepHistory, SessionStep, Session
 import { sessionService } from '@/services/mockSessionService';
 import { useToast } from '@/hooks/use-toast';
 import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { ArrowRight, CheckCircle2 } from 'lucide-react';
 
 export const sessionSteps: SessionStep[] = [
   'create',
@@ -32,14 +34,13 @@ export default function RunScan() {
   const [sessionStartTime, setSessionStartTime] = useState<string | null>(null);
   const [psychopyConfig, setPsychopyConfig] = useState<PsychoPyConfig>({
     displayFeedback: 'Feedback',
-    participantAnchor: '',
+    participantAnchor: 'toe',
     feedbackCondition: '15min',
   });
   const [isRunning, setIsRunning] = useState(false);
   const [sessionInitialized, setSessionInitialized] = useState(false);
   const [stepExecutionCounts, setStepExecutionCounts] = useState<Map<SessionStep, number>>(new Map());
   const [runningSteps, setRunningSteps] = useState<Set<SessionStep>>(new Set());
-  const [stoppedSteps, setStoppedSteps] = useState<Set<SessionStep>>(new Set());
   const [stepHistory, setStepHistory] = useState<SessionStepHistory[]>([]);
   const [manualWorkflowStep, setManualWorkflowStep] = useState<WorkflowStep | null>(null);
   const [murfiStarted, setMurfiStarted] = useState(false);
@@ -51,7 +52,7 @@ export default function RunScan() {
   // Determine workflow step based on state
   const getCurrentWorkflowStep = (): WorkflowStep => {
     if (sessionInitialized) return 'execute';
-    // Don't auto-advance from participant to execute - require button click
+    if (sessionConfig?.participantId && sessionConfig?.psychopyConfig) return 'execute';
     if (sessionConfig?.participantId) return 'participant';
     if (murfiStarted && psychopyStarted) return 'participant';
     return 'initialize';
@@ -81,7 +82,7 @@ export default function RunScan() {
       participantId,
       sessionDate: new Date().toISOString().split('T')[0],
       protocol: 'DMN-NFB',
-      psychopyConfig: psychopyConfig, // Keep existing config if any
+      psychopyConfig,
     });
     setManualWorkflowStep(null);
   };
@@ -101,12 +102,6 @@ export default function RunScan() {
 
     setRunningSteps(prev => new Set(prev).add(step));
     setIsRunning(true);
-    // Remove from stopped steps if it was previously stopped
-    setStoppedSteps(prev => {
-      const next = new Set(prev);
-      next.delete(step);
-      return next;
-    });
 
     try {
       // Start step
@@ -120,47 +115,29 @@ export default function RunScan() {
 
       // Simulate step execution
       const completedStep = await sessionService.completeStep(step);
+      setStepHistory(prev =>
+        prev.map((s, i) => i === prev.length - 1 ? completedStep : s)
+      );
 
-      // Check if step was stopped while executing - use a functional update to check current state
-      setStoppedSteps(prevStopped => {
-        if (prevStopped.has(step)) {
-          // Step was stopped, don't mark as completed
-          setRunningSteps(prevRunning => {
-            const next = new Set(prevRunning);
-            next.delete(step);
-            return next;
-          });
-          setIsRunning(false);
-          return prevStopped;
-        }
+      // Increment execution count for this step
+      setStepExecutionCounts(prev => {
+        const newCounts = new Map(prev);
+        const currentCount = newCounts.get(step) || 0;
+        newCounts.set(step, currentCount + 1);
+        return newCounts;
+      });
 
-        // Step wasn't stopped, proceed with completion
-        setStepHistory(prevHistory =>
-          prevHistory.map((s, i) => i === prevHistory.length - 1 ? completedStep : s)
-        );
+      setIsRunning(false);
 
-        // Increment execution count for this step only if it completed successfully
-        setStepExecutionCounts(prevCounts => {
-          const newCounts = new Map(prevCounts);
-          const currentCount = newCounts.get(step) || 0;
-          newCounts.set(step, currentCount + 1);
-          return newCounts;
-        });
+      setRunningSteps(prev => {
+        const next = new Set(prev);
+        next.delete(step);
+        return next;
+      });
 
-        setIsRunning(false);
-
-        setRunningSteps(prevRunning => {
-          const next = new Set(prevRunning);
-          next.delete(step);
-          return next;
-        });
-
-        toast({
-          title: `${step} completed`,
-          description: completedStep.message,
-        });
-
-        return prevStopped;
+      toast({
+        title: `${step} completed`,
+        description: completedStep.message,
       });
     } catch (error) {
       setRunningSteps(prev => {
@@ -177,63 +154,11 @@ export default function RunScan() {
     }
   };
 
-  const handleStopStep = () => {
-    if (runningSteps.size === 0) return;
-
-    // Stop all running steps
-    const stepsToStop = Array.from(runningSteps);
-
-    // Mark steps as stopped to prevent them from completing
-    setStoppedSteps(prev => {
-      const next = new Set(prev);
-      stepsToStop.forEach(step => next.add(step));
-      return next;
-    });
-
-    setRunningSteps(new Set());
-    setIsRunning(false);
-
-    // Update step history to mark steps as failed/stopped
-    setStepHistory(prev => {
-      const updated = [...prev];
-      stepsToStop.forEach(step => {
-        // Find the last index of a running step
-        let lastStepIndex = -1;
-        for (let i = updated.length - 1; i >= 0; i--) {
-          if (updated[i].step === step && updated[i].status === 'running') {
-            lastStepIndex = i;
-            break;
-          }
-        }
-        if (lastStepIndex !== -1) {
-          updated[lastStepIndex] = {
-            ...updated[lastStepIndex],
-            status: 'failed',
-            message: 'Step stopped by user',
-          };
-        }
-      });
-      return updated;
-    });
-
-    toast({
-      title: 'Steps stopped',
-      description: `Stopped ${stepsToStop.length} running step${stepsToStop.length > 1 ? 's' : ''}`,
-      variant: 'destructive',
-    });
-  };
-
-  const handleStartSession = async () => {
+  const handleStartSession = () => {
     if (!sessionConfig) return;
 
-    // Generate sequential session ID
-    const existingSessions = await sessionService.getPreviousSessions();
-    const maxId = existingSessions.reduce((max, session) => {
-      const idNum = parseInt(session.id.replace('S', ''), 10);
-      return isNaN(idNum) ? max : Math.max(max, idNum);
-    }, 0);
-    const nextId = maxId + 1;
-    const newSessionId = `S${nextId.toString().padStart(3, '0')}`;
+    // Generate session ID
+    const newSessionId = `S${Date.now().toString().slice(-6)}`;
     setSessionId(newSessionId);
     setSessionStartTime(new Date().toISOString());
 
@@ -245,7 +170,7 @@ export default function RunScan() {
     setManualWorkflowStep(null);
 
     toast({
-      title: 'Session initialised',
+      title: 'Session initialized',
       description: `Session ready for participant ${sessionConfig.participantId}. Select steps to execute.`,
     });
   };
@@ -314,7 +239,6 @@ export default function RunScan() {
     setSessionInitialized(false);
     setStepExecutionCounts(new Map());
     setRunningSteps(new Set());
-    setStoppedSteps(new Set());
     setIsRunning(false);
     setManualWorkflowStep(null);
     setMurfiStarted(false);
@@ -323,7 +247,7 @@ export default function RunScan() {
     setSessionStartTime(null);
     setPsychopyConfig({
       displayFeedback: 'Feedback',
-      participantAnchor: '',
+      participantAnchor: 'toe',
       feedbackCondition: '15min',
     });
     toast({
@@ -374,45 +298,59 @@ export default function RunScan() {
         )}
 
         {workflowStep === 'participant' && (
-          <Card className="p-6 bg-card border-border">
-            <h2 className="text-xl font-semibold mb-4 text-foreground flex items-center gap-2">
-              <span className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold">
-                2
-              </span>
-              Select Participant
-            </h2>
-            <p className="text-muted-foreground mb-6">
-              Choose an existing participant or create a new one to continue.
-            </p>
-            <ParticipantSelector
-              onParticipantSelect={handleParticipantSelect}
-              selectedParticipantId={sessionConfig?.participantId}
-              inline={false}
-              showContinueButton={true}
-              onContinue={() => {
-                handleStartSession();
-                setManualWorkflowStep('execute');
-              }}
-              continueDisabled={!sessionConfig?.participantId}
-            />
-          </Card>
+          <div className="space-y-6">
+            <Card className="p-6 bg-card border-border">
+              <h2 className="text-xl font-semibold mb-4 text-foreground flex items-center gap-2">
+                <span className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold">
+                  2
+                </span>
+                Select Participant & Configure
+              </h2>
+              <p className="text-muted-foreground mb-6">
+                Choose an existing participant or create a new one, then configure PsychoPy settings.
+              </p>
+              <ParticipantSelector
+                onParticipantSelect={handleParticipantSelect}
+                selectedParticipantId={sessionConfig?.participantId}
+                inline={false}
+              />
+            </Card>
+
+            {sessionConfig?.participantId && (
+              <Card className="p-6 bg-card border-border">
+                <h3 className="text-lg font-semibold mb-4 text-foreground">PsychoPy Configuration</h3>
+                <PsychoPyConfigComponent
+                  config={psychopyConfig}
+                  onChange={handlePsychoPyConfigChange}
+                />
+                <div className="mt-6 flex justify-end">
+                  <Button
+                    onClick={() => {
+                      handleStartSession();
+                      setManualWorkflowStep('execute');
+                    }}
+                    disabled={!sessionConfig?.psychopyConfig}
+                    className="bg-primary hover:bg-primary/90"
+                  >
+                    Start Session & Continue
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </div>
+              </Card>
+            )}
+          </div>
         )}
 
         {workflowStep === 'execute' && (
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
             {/* Left Column - Controls and Status */}
-            <div className="space-y-6">
+            <div className="xl:col-span-2 space-y-6">
               <SessionStatusDashboard
                 isInitialized={sessionInitialized}
                 isRunning={isRunning}
                 stepHistory={stepHistory}
                 totalSteps={sessionSteps.length}
                 runningSteps={runningSteps}
-              />
-
-              <FeedbackConfig
-                config={psychopyConfig}
-                onChange={handlePsychoPyConfigChange}
               />
 
               <SessionControls
@@ -425,14 +363,13 @@ export default function RunScan() {
                 stepHistory={stepHistory}
                 onStart={handleStartSession}
                 onRunStep={handleRunStep}
-                onStopStep={handleStopStep}
                 onReset={handleReset}
               />
 
               <StepHistory history={stepHistory} />
             </div>
 
-            {/* Right Column - Preview (1/2 width) */}
+            {/* Right Column - Preview */}
             <div className="space-y-6">
               <BrainScanPreview isActive={isRunning || sessionInitialized} />
             </div>

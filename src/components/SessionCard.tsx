@@ -16,7 +16,7 @@ export function SessionCard({ session, isSelected, onSelect }: SessionCardProps)
   const navigate = useNavigate();
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-GB', {
+    return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
@@ -24,7 +24,7 @@ export function SessionCard({ session, isSelected, onSelect }: SessionCardProps)
   };
 
   const formatTime = (dateString: string) => {
-    return new Date(dateString).toLocaleTimeString('en-GB', {
+    return new Date(dateString).toLocaleTimeString('en-US', {
       hour: '2-digit',
       minute: '2-digit',
     });
@@ -99,6 +99,10 @@ export function SessionCard({ session, isSelected, onSelect }: SessionCardProps)
               <User className="h-3.5 w-3.5" />
               <span>{session.config.participantId}</span>
             </div>
+            <div className="flex items-center gap-1.5">
+              <Calendar className="h-3.5 w-3.5" />
+              <span>{formatDate(session.config.sessionDate)}</span>
+            </div>
           </div>
         </div>
         {onSelect && (
@@ -147,11 +151,8 @@ export function SessionCard({ session, isSelected, onSelect }: SessionCardProps)
           </div>
         </div>
         <div className="p-2 rounded-lg bg-secondary/30">
-          <div className="text-xs text-muted-foreground mb-1">Date</div>
-          <div className="text-sm font-semibold text-foreground flex items-center gap-1">
-            <Calendar className="h-3.5 w-3.5" />
-            {formatDate(session.config.sessionDate)}
-          </div>
+          <div className="text-xs text-muted-foreground mb-1">Protocol</div>
+          <div className="text-sm font-semibold text-foreground">{session.config.protocol}</div>
         </div>
       </div>
 
