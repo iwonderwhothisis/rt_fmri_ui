@@ -47,7 +47,7 @@ export function BrainScanPreview({ isActive }: BrainScanPreviewProps) {
               }} />
             </div>
 
-            {/* Central brain visualization */}
+            {/* Central brain visualisation */}
             <div className="absolute inset-0 flex flex-col items-center justify-center">
               <div className="relative">
                 <Brain className="h-24 w-24 text-primary/60 animate-pulse" />
@@ -98,7 +98,7 @@ export function BrainScanPreview({ isActive }: BrainScanPreviewProps) {
               Waiting for session to start...
             </p>
             <p className="text-xs text-muted-foreground/70 mt-2 text-center max-w-xs">
-              Real-time brain activity visualization will appear here once the session begins
+              Real-time brain activity visualisation will appear here once the session begins
             </p>
           </div>
         )}

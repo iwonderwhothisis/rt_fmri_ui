@@ -26,7 +26,7 @@ export function InitializeStep({
         <span className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold">
           1
         </span>
-        Initialize Systems
+        Initialise Systems
       </h2>
       <p className="text-muted-foreground mb-6">
         Start the required systems before proceeding with the session setup.

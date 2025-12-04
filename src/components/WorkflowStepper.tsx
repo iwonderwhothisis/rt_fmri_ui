@@ -10,7 +10,7 @@ interface WorkflowStepperProps {
 }
 
 const steps: { id: WorkflowStep; label: string; description: string }[] = [
-  { id: 'initialize', label: 'Initialize', description: 'Start Murfi & PsychoPy' },
+  { id: 'initialize', label: 'Initialise', description: 'Start Murfi & PsychoPy' },
   { id: 'participant', label: 'Participant', description: 'Select participant & configure' },
   { id: 'execute', label: 'Execute', description: 'Run session steps' },
 ];

@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Play, RotateCcw, AlertCircle, CheckCircle2, Loader2, Check } from 'lucide-react';
+import { Play, RotateCcw, AlertCircle, CheckCircle2, Loader2, Check, Square, XCircle } from 'lucide-react';
 import { SessionConfig, SessionStep, SessionStepHistory } from '@/types/session';
 
 interface SessionControlsProps {
@@ -13,6 +13,7 @@ interface SessionControlsProps {
   stepHistory: SessionStepHistory[];
   onStart: () => void;
   onRunStep: (step: SessionStep) => void;
+  onStopStep?: () => void;
   onReset: () => void;
 }
 
@@ -26,6 +27,7 @@ export function SessionControls({
   stepHistory,
   onStart,
   onRunStep,
+  onStopStep,
   onReset
 }: SessionControlsProps) {
   const isConfigValid = config?.participantId && config?.psychopyConfig;
@@ -40,6 +42,9 @@ export function SessionControls({
 
   const getStepStatus = (step: SessionStep) => {
     if (runningSteps.has(step)) return 'running';
+    // Check if the step has failed in history
+    const hasFailed = stepHistory.some(h => h.step === step && h.status === 'failed');
+    if (hasFailed) return 'failed';
     const count = stepExecutionCounts.get(step) || 0;
     if (count > 0) return 'completed';
     return 'pending';
@@ -99,16 +104,19 @@ export function SessionControls({
               const status = getStepStatus(step);
               const executionCount = getStepExecutionCount(step);
               const isDisabled = status === 'running';
+              const hasFailed = status === 'failed';
 
               return (
                 <Button
                   key={step}
                   onClick={() => onRunStep(step)}
                   disabled={isDisabled}
-                  variant={executionCount > 0 ? 'default' : 'outline'}
+                  variant={executionCount > 0 || hasFailed ? 'default' : 'outline'}
                   className={`
                     h-auto py-3 px-4 flex flex-col items-center gap-2
-                    ${executionCount > 0
+                    ${hasFailed
+                      ? 'bg-destructive/20 text-destructive border-destructive/30 hover:bg-destructive/30'
+                      : executionCount > 0
                       ? 'bg-success/20 text-success border-success/30 hover:bg-success/30'
                       : status === 'running'
                       ? 'bg-primary/20 text-primary border-primary/30'
@@ -118,7 +126,10 @@ export function SessionControls({
                   `}
                 >
                   <div className="flex items-center gap-2 w-full justify-center">
-                    {executionCount > 0 && status !== 'running' && (
+                    {hasFailed && (
+                      <XCircle className="h-4 w-4" />
+                    )}
+                    {executionCount > 0 && status !== 'running' && !hasFailed && (
                       <CheckCircle2 className="h-4 w-4" />
                     )}
                     {status === 'running' && (
@@ -129,12 +140,17 @@ export function SessionControls({
                     </span>
                   </div>
                   <div className="flex items-center gap-1">
-                    {executionCount > 0 && status !== 'running' && (
+                    {hasFailed && (
+                      <span className="text-xs font-semibold text-destructive">
+                        Failed
+                      </span>
+                    )}
+                    {executionCount > 0 && status !== 'running' && !hasFailed && (
                       <span className="text-xs font-semibold">
                         Run {executionCount}
                       </span>
                     )}
-                    {executionCount === 0 && status !== 'running' && (
+                    {executionCount === 0 && status !== 'running' && !hasFailed && (
                       <span className="text-xs text-muted-foreground">Click to run</span>
                     )}
                     {status === 'running' && (
@@ -147,16 +163,30 @@ export function SessionControls({
           </div>
 
           <div className="pt-4 border-t border-border">
-            <Button
-              onClick={onReset}
-              disabled={isRunning}
-              variant="outline"
-              className="w-full hover:bg-gradient-to-r hover:from-primary hover:to-accent hover:text-primary-foreground hover:border-transparent transition-all duration-300"
-              size="lg"
-            >
-              <Check className="mr-2 h-4 w-4" />
-              Finish Session
-            </Button>
+            <div className="flex gap-3">
+              {onStopStep && (
+                <Button
+                  onClick={onStopStep}
+                  disabled={runningSteps.size === 0}
+                  variant="outline"
+                  className="flex-1 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-all duration-300"
+                  size="lg"
+                >
+                  <Square className="mr-2 h-4 w-4" />
+                  Stop Step
+                </Button>
+              )}
+              <Button
+                onClick={onReset}
+                disabled={isRunning}
+                variant="outline"
+                className="flex-1 hover:bg-gradient-to-r hover:from-primary hover:to-accent hover:text-primary-foreground hover:border-transparent transition-all duration-300"
+                size="lg"
+              >
+                <Check className="mr-2 h-4 w-4" />
+                Finish Session
+              </Button>
+            </div>
           </div>
         </div>
       )}

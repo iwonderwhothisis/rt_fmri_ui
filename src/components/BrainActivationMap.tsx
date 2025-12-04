@@ -15,7 +15,7 @@ export function BrainActivationMap({ sessionId }: BrainActivationMapProps) {
           <h3 className="text-lg font-semibold text-foreground">Brain Activation</h3>
         </div>
 
-        {/* Mock brain visualization */}
+        {/* Mock brain visualisation */}
         <div className="bg-secondary/20 rounded-lg p-12 border border-border border-dashed">
           <div className="flex items-center justify-center text-muted-foreground">
             <div className="text-center space-y-2">
