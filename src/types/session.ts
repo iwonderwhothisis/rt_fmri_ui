@@ -5,7 +5,7 @@ export interface Participant {
   lastSession?: string;
 }
 
-export type SessionStep = 
+export type SessionStep =
   | 'create'
   | 'setup'
   | '2vol'
@@ -27,7 +27,6 @@ export interface SessionStepHistory {
 }
 
 export interface PsychoPyConfig {
-  runNumber: number;
   displayFeedback: 'No Feedback' | 'Feedback';
   participantAnchor: string;
   feedbackCondition: string;

@@ -19,20 +19,8 @@ export function PsychoPyConfigComponent({ config, onChange }: PsychoPyConfigProp
   return (
     <Card className="p-6 bg-card border-border">
       <h3 className="text-lg font-semibold mb-4 text-foreground">PsychoPy Configuration</h3>
-      
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="runNumber">Run Number</Label>
-          <Input
-            id="runNumber"
-            type="number"
-            value={config.runNumber}
-            onChange={e => onChange({ ...config, runNumber: parseInt(e.target.value) || 1 })}
-            className="bg-input border-border"
-            min={1}
-          />
-        </div>
 
+      <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="feedback">Display Feedback</Label>
           <Select

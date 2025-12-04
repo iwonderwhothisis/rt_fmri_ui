@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Play, RotateCcw, AlertCircle, CheckCircle2, Loader2, Check } from 'lucide-react';
-import { SessionConfig, SessionStep } from '@/types/session';
+import { SessionConfig, SessionStep, SessionStepHistory } from '@/types/session';
 
 interface SessionControlsProps {
   config: SessionConfig | null;
@@ -10,6 +10,7 @@ interface SessionControlsProps {
   stepExecutionCounts: Map<SessionStep, number>;
   runningSteps: Set<SessionStep>;
   sessionSteps: SessionStep[];
+  stepHistory: SessionStepHistory[];
   onStart: () => void;
   onRunStep: (step: SessionStep) => void;
   onReset: () => void;
@@ -22,6 +23,7 @@ export function SessionControls({
   stepExecutionCounts,
   runningSteps,
   sessionSteps,
+  stepHistory,
   onStart,
   onRunStep,
   onReset

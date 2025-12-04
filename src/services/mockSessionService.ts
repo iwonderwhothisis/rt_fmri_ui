@@ -16,7 +16,6 @@ const mockPreviousSessions: Session[] = [
       sessionDate: '2024-11-15',
       protocol: 'DMN-NFB',
       psychopyConfig: {
-        runNumber: 1,
         displayFeedback: 'Feedback',
         participantAnchor: 'toe',
         feedbackCondition: '15min',
@@ -95,5 +94,12 @@ export const sessionService = {
   checkSystemStatus: async (): Promise<{ murfi: boolean; psychopy: boolean }> => {
     await new Promise(resolve => setTimeout(resolve, 200));
     return { murfi: true, psychopy: true };
+  },
+
+  // Create/save a session
+  createSession: async (session: Session): Promise<Session> => {
+    await new Promise(resolve => setTimeout(resolve, 300));
+    mockPreviousSessions.unshift(session); // Add to beginning of array
+    return session;
   },
 };
