@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Play, RotateCcw, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
+import { Play, RotateCcw, AlertCircle, CheckCircle2, Loader2, Check } from 'lucide-react';
 import { SessionConfig, SessionStep } from '@/types/session';
 
 interface SessionControlsProps {
@@ -12,7 +12,6 @@ interface SessionControlsProps {
   sessionSteps: SessionStep[];
   onStart: () => void;
   onRunStep: (step: SessionStep) => void;
-  onRunAllRemaining: () => void;
   onReset: () => void;
 }
 
@@ -25,7 +24,6 @@ export function SessionControls({
   sessionSteps,
   onStart,
   onRunStep,
-  onRunAllRemaining,
   onReset
 }: SessionControlsProps) {
   const isConfigValid = config?.participantId && config?.psychopyConfig;
@@ -48,10 +46,6 @@ export function SessionControls({
   const getStepExecutionCount = (step: SessionStep): number => {
     return stepExecutionCounts.get(step) || 0;
   };
-
-  const remainingStepsCount = sessionSteps.filter(
-    step => !stepExecutionCounts.has(step) && !runningSteps.has(step)
-  ).length;
 
   const totalExecutions = Array.from(stepExecutionCounts.values()).reduce((sum, count) => sum + count, 0);
 
@@ -79,27 +73,26 @@ export function SessionControls({
             <Play className="mr-2 h-5 w-5" />
             Start Session
           </Button>
-        ) : (
-          <Button
-            onClick={onRunAllRemaining}
-            disabled={remainingStepsCount === 0 || isRunning}
-            className="flex-1 bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-primary-foreground font-semibold shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300"
-            size="lg"
-          >
-            <Play className="mr-2 h-5 w-5" />
-            Run All Remaining ({remainingStepsCount})
-          </Button>
-        )}
+        ) : null}
 
         <Button
           onClick={onReset}
           disabled={isRunning}
           variant="outline"
-          className="border-border hover:bg-secondary"
+          className={sessionInitialized ? "flex-1" : ""}
           size="lg"
         >
-          <RotateCcw className="mr-2 h-4 w-4" />
-          Reset
+          {sessionInitialized ? (
+            <>
+              <Check className="mr-2 h-4 w-4" />
+              Finish
+            </>
+          ) : (
+            <>
+              <RotateCcw className="mr-2 h-4 w-4" />
+              Reset
+            </>
+          )}
         </Button>
       </div>
 

@@ -111,83 +111,6 @@ export default function RunScan() {
     }
   };
 
-  const handleRunAllRemaining = async () => {
-    // Run all steps that haven't been executed at least once
-    const remainingSteps = sessionSteps.filter(step =>
-      !stepExecutionCounts.has(step) && !runningSteps.has(step)
-    );
-
-    if (remainingSteps.length === 0) return;
-
-    setIsRunning(true);
-
-    for (const step of remainingSteps) {
-      // Mark step as running
-      setRunningSteps(prev => new Set(prev).add(step));
-
-      try {
-        // Start step
-        const startedStep = await sessionService.startStep(step);
-        setStepHistory(prev => [...prev, startedStep]);
-
-        toast({
-          title: `Starting ${step}`,
-          description: 'Executing step...',
-        });
-
-        // Simulate step execution
-        const completedStep = await sessionService.completeStep(step);
-        setStepHistory(prev =>
-          prev.map((s, i) => i === prev.length - 1 ? completedStep : s)
-        );
-
-        // Increment execution count for this step
-        setStepExecutionCounts(prev => {
-          const newCounts = new Map(prev);
-          const currentCount = newCounts.get(step) || 0;
-          newCounts.set(step, currentCount + 1);
-          return newCounts;
-        });
-
-        setRunningSteps(prev => {
-          const next = new Set(prev);
-          next.delete(step);
-          return next;
-        });
-
-        toast({
-          title: `${step} completed`,
-          description: completedStep.message,
-        });
-
-        // Small delay between steps
-        await new Promise(resolve => setTimeout(resolve, 500));
-      } catch (error) {
-        setRunningSteps(prev => {
-          const next = new Set(prev);
-          next.delete(step);
-          return next;
-        });
-        toast({
-          title: 'Step error',
-          description: `An error occurred during ${step} execution`,
-          variant: 'destructive',
-        });
-      }
-    }
-
-    setIsRunning(false);
-
-    // Check if all steps have been executed at least once
-    const initialExecutedCount = stepExecutionCounts.size;
-    if (initialExecutedCount + remainingSteps.length === sessionSteps.length) {
-      toast({
-        title: 'Session completed',
-        description: 'All steps executed successfully',
-      });
-    }
-  };
-
   const handleStartSession = () => {
     if (!sessionConfig) return;
 
@@ -231,19 +154,18 @@ export default function RunScan() {
             <h1 className="text-3xl font-bold text-foreground bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
               rt-fMRI Neurofeedback Control
             </h1>
-            <p className="text-muted-foreground mt-1">SMART-Kids Protocol</p>
           </div>
+          <ParticipantSelector
+            onParticipantSelect={handleParticipantSelect}
+            selectedParticipantId={sessionConfig?.participantId}
+            inline={true}
+          />
         </div>
 
         {/* Main Grid Layout */}
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
           {/* Left Column - Configuration */}
           <div className="space-y-6">
-            <ParticipantSelector
-              onParticipantSelect={handleParticipantSelect}
-              selectedParticipantId={sessionConfig?.participantId}
-            />
-
             <PsychoPyConfigComponent
               config={psychopyConfig}
               onChange={handlePsychoPyConfigChange}
@@ -258,7 +180,6 @@ export default function RunScan() {
               sessionSteps={sessionSteps}
               onStart={handleStartSession}
               onRunStep={handleRunStep}
-              onRunAllRemaining={handleRunAllRemaining}
               onReset={handleReset}
             />
 
