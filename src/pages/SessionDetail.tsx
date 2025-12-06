@@ -6,9 +6,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Session } from '@/types/session';
 import { sessionService } from '@/services/mockSessionService';
-import { ArrowLeft, Download, Calendar, Clock, User } from 'lucide-react';
+import { ArrowLeft, Download, Calendar, Clock, User, CheckCircle2, AlertCircle, BarChart3, Brain } from 'lucide-react';
 import { StepHistory } from '@/components/StepHistory';
 import { BrainActivationMap } from '@/components/BrainActivationMap';
+import { SessionAnalytics } from '@/components/SessionAnalytics';
 
 export default function SessionDetail() {
   const { sessionId } = useParams();
@@ -111,11 +112,18 @@ export default function SessionDetail() {
     );
   }
 
+  const completedSteps = session.stepHistory.filter((s) => s.status === 'completed').length;
+  const failedSteps = session.stepHistory.filter((s) => s.status === 'failed').length;
+  const totalSteps = session.stepHistory.length;
+  const totalDuration = session.startTime && session.endTime
+    ? Math.floor((new Date(session.endTime).getTime() - new Date(session.startTime).getTime()) / 60000)
+    : 0;
+
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-[1800px] mx-auto space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <Button variant="ghost" onClick={() => navigate('/previous-scans')}>
               <ArrowLeft className="mr-2 h-4 w-4" />
@@ -130,120 +138,124 @@ export default function SessionDetail() {
           </div>
 
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => handleExport('json')}>
+            <Button variant="outline" onClick={() => handleExport('json')} className="border-border">
               <Download className="mr-2 h-4 w-4" />
-              Export JSON
+              <span className="hidden sm:inline">Export JSON</span>
+              <span className="sm:hidden">JSON</span>
             </Button>
-            <Button variant="outline" onClick={() => handleExport('csv')}>
+            <Button variant="outline" onClick={() => handleExport('csv')} className="border-border">
               <Download className="mr-2 h-4 w-4" />
-              Export CSV
+              <span className="hidden sm:inline">Export CSV</span>
+              <span className="sm:hidden">CSV</span>
             </Button>
           </div>
         </div>
 
-        {/* Session Overview */}
-        <Card className="p-6 bg-card border-border">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="flex items-center gap-3">
-              <User className="h-5 w-5 text-primary" />
+        {/* Dashboard Metrics */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card className="p-5 bg-gradient-to-br from-card to-card/80 border-border shadow-lg">
+            <div className="flex items-center justify-between">
               <div>
-                <div className="text-sm text-muted-foreground">Participant</div>
-                <div className="font-semibold text-foreground">{session.config.participantId}</div>
+                <div className="text-sm text-muted-foreground mb-1">Status</div>
+                <Badge
+                  variant="outline"
+                  className={
+                    session.status === 'completed'
+                      ? 'bg-success/20 text-success border-success/30 text-base px-3 py-1'
+                      : session.status === 'error'
+                      ? 'bg-destructive/20 text-destructive border-destructive/30 text-base px-3 py-1'
+                      : 'bg-primary/20 text-primary border-primary/30 text-base px-3 py-1'
+                  }
+                >
+                  {session.status}
+                </Badge>
               </div>
+              {session.status === 'completed' ? (
+                <CheckCircle2 className="h-8 w-8 text-success" />
+              ) : session.status === 'error' ? (
+                <AlertCircle className="h-8 w-8 text-destructive" />
+              ) : (
+                <Clock className="h-8 w-8 text-primary" />
+              )}
             </div>
+          </Card>
 
-            <div className="flex items-center gap-3">
-              <Calendar className="h-5 w-5 text-primary" />
+          <Card className="p-5 bg-gradient-to-br from-card to-card/80 border-border shadow-lg">
+            <div className="flex items-center justify-between">
               <div>
-                <div className="text-sm text-muted-foreground">Date</div>
-                <div className="font-semibold text-foreground">{formatDate(session.config.sessionDate)}</div>
+                <div className="text-sm text-muted-foreground mb-1">Progress</div>
+                <div className="text-2xl font-bold text-foreground">
+                  {completedSteps} / {totalSteps}
+                </div>
+                <div className="text-xs text-muted-foreground mt-1">steps completed</div>
               </div>
+              <BarChart3 className="h-8 w-8 text-primary" />
             </div>
+            <div className="mt-3 h-2 bg-secondary rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-primary to-accent transition-all duration-500"
+                style={{ width: `${totalSteps > 0 ? (completedSteps / totalSteps) * 100 : 0}%` }}
+              />
+            </div>
+          </Card>
 
-            <div className="flex items-center gap-3">
-              <Clock className="h-5 w-5 text-primary" />
+          <Card className="p-5 bg-gradient-to-br from-card to-card/80 border-border shadow-lg">
+            <div className="flex items-center justify-between">
               <div>
-                <div className="text-sm text-muted-foreground">Start Time</div>
-                <div className="font-semibold text-foreground">
-                  {session.startTime ? formatTime(session.startTime) : 'N/A'}
+                <div className="text-sm text-muted-foreground mb-1">Duration</div>
+                <div className="text-2xl font-bold text-foreground">{totalDuration} min</div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  {session.startTime && formatTime(session.startTime)}
                 </div>
               </div>
+              <Clock className="h-8 w-8 text-accent" />
             </div>
-          </div>
+          </Card>
+
+          <Card className="p-5 bg-gradient-to-br from-card to-card/80 border-border shadow-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm text-muted-foreground mb-1">Participant</div>
+                <div className="text-2xl font-bold text-foreground">{session.config.participantId}</div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  {formatDate(session.config.sessionDate)}
+                </div>
+              </div>
+              <User className="h-8 w-8 text-success" />
+            </div>
+          </Card>
+        </div>
+
+        {/* Session Overview Cards */}
+        <Card className="p-6 bg-card border-border">
+          <h3 className="text-lg font-semibold mb-4 text-foreground flex items-center gap-2">
+            <BarChart3 className="h-5 w-5 text-primary" />
+            Session Analytics
+          </h3>
+          <SessionAnalytics session={session} />
         </Card>
 
         {/* Detailed Tabs */}
-        <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="steps">Step History</TabsTrigger>
-            <TabsTrigger value="brain">Brain Activation</TabsTrigger>
+        <Tabs defaultValue="steps" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="steps" className="flex items-center gap-2">
+              <BarChart3 className="h-4 w-4" />
+              <span>Step History</span>
+              <Badge variant="outline" className="ml-2 text-xs">
+                {totalSteps}
+              </Badge>
+            </TabsTrigger>
+            <TabsTrigger value="brain" className="flex items-center gap-2">
+              <Brain className="h-4 w-4" />
+              <span>Brain Activation</span>
+            </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="overview" className="space-y-6">
-            <Card className="p-6 bg-card border-border">
-              <h3 className="text-lg font-semibold mb-4 text-foreground">Session Configuration</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <div className="text-sm text-muted-foreground">Run Number</div>
-                  <div className="text-foreground">{session.config.psychopyConfig.runNumber}</div>
-                </div>
-                <div>
-                  <div className="text-sm text-muted-foreground">Display Feedback</div>
-                  <div className="text-foreground">{session.config.psychopyConfig.displayFeedback}</div>
-                </div>
-                <div>
-                  <div className="text-sm text-muted-foreground">Participant Anchor</div>
-                  <div className="text-foreground">{session.config.psychopyConfig.participantAnchor}</div>
-                </div>
-                <div>
-                  <div className="text-sm text-muted-foreground">Feedback Condition</div>
-                  <div className="text-foreground">{session.config.psychopyConfig.feedbackCondition}</div>
-                </div>
-              </div>
-            </Card>
-
-            <Card className="p-6 bg-card border-border">
-              <h3 className="text-lg font-semibold mb-4 text-foreground">Session Summary</h3>
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Status:</span>
-                  <Badge
-                    variant="outline"
-                    className={
-                      session.status === 'completed'
-                        ? 'bg-success/20 text-success border-success/30'
-                        : session.status === 'error'
-                        ? 'bg-destructive/20 text-destructive border-destructive/30'
-                        : 'bg-primary/20 text-primary border-primary/30'
-                    }
-                  >
-                    {session.status}
-                  </Badge>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Steps Completed:</span>
-                  <span className="text-foreground">
-                    {session.stepHistory.filter(s => s.status === 'completed').length} / {session.stepHistory.length}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Total Duration:</span>
-                  <span className="text-foreground">
-                    {session.startTime && session.endTime
-                      ? `${Math.floor((new Date(session.endTime).getTime() - new Date(session.startTime).getTime()) / 60000)} min`
-                      : 'N/A'}
-                  </span>
-                </div>
-              </div>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="steps">
+          <TabsContent value="steps" className="mt-6">
             <StepHistory history={session.stepHistory} />
           </TabsContent>
 
-          <TabsContent value="brain">
+          <TabsContent value="brain" className="mt-6">
             <BrainActivationMap sessionId={session.id} />
           </TabsContent>
         </Tabs>
