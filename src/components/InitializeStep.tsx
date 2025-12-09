@@ -50,10 +50,10 @@ export function InitializeStep({
         <span className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold">
           1
         </span>
-        Initialize Systems
+        Initialise Systems
       </h2>
       <p className="text-muted-foreground mb-6">
-        Start the required systems before proceeding with the session setup.
+        Start the required software before proceeding
       </p>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
