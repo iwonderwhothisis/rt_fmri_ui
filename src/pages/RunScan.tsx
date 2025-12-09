@@ -47,6 +47,9 @@ export default function RunScan() {
   const [psychopyStarted, setPsychopyStarted] = useState(false);
   const [isStartingMurfi, setIsStartingMurfi] = useState(false);
   const [isStartingPsychoPy, setIsStartingPsychoPy] = useState(false);
+  const [murfiOutput, setMurfiOutput] = useState<string[]>([]);
+  const [psychopyOutput, setPsychopyOutput] = useState<string[]>([]);
+  const [initializeConfirmed, setInitializeConfirmed] = useState(false);
   const { toast } = useToast();
 
   // Determine workflow step based on state
@@ -54,13 +57,13 @@ export default function RunScan() {
     if (sessionInitialized) return 'execute';
     if (sessionConfig?.participantId && sessionConfig?.psychopyConfig) return 'execute';
     if (sessionConfig?.participantId) return 'participant';
-    if (murfiStarted && psychopyStarted) return 'participant';
+    if (murfiStarted && psychopyStarted && initializeConfirmed) return 'participant';
     return 'initialize';
   };
 
   const getCompletedWorkflowSteps = (): WorkflowStep[] => {
     const completed: WorkflowStep[] = [];
-    if (murfiStarted && psychopyStarted) completed.push('initialize');
+    if (murfiStarted && psychopyStarted && initializeConfirmed) completed.push('initialize');
     if (sessionConfig?.participantId && sessionConfig?.psychopyConfig) completed.push('participant');
     if (sessionInitialized) completed.push('execute');
     return completed;
@@ -177,7 +180,36 @@ export default function RunScan() {
 
   const handleStartMurfi = async () => {
     setIsStartingMurfi(true);
-    // Simulate starting Murfi
+    setMurfiOutput([]);
+
+    // Simulate running terminal commands for Murfi
+    const commands = [
+      'cd /path/to/murfi',
+      'source activate murfi_env',
+      'python murfi_server.py --port 8080',
+    ];
+
+    // Simulate command execution with output
+    for (let i = 0; i < commands.length; i++) {
+      const command = commands[i];
+      setMurfiOutput(prev => [...prev, `$ ${command}`]);
+
+      // Simulate command output
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      if (i === commands.length - 1) {
+        setMurfiOutput(prev => [
+          ...prev,
+          'Murfi server starting...',
+          'Listening on port 8080',
+          'Real-time processing ready',
+          '✓ Murfi started successfully'
+        ]);
+      } else {
+        setMurfiOutput(prev => [...prev, '✓ Command executed']);
+      }
+    }
+
     setTimeout(() => {
       setMurfiStarted(true);
       setIsStartingMurfi(false);
@@ -185,12 +217,41 @@ export default function RunScan() {
         title: 'Murfi started',
         description: 'Real-time fMRI processing system is now running',
       });
-    }, 1000);
+    }, 500);
   };
 
   const handleStartPsychoPy = async () => {
     setIsStartingPsychoPy(true);
-    // Simulate starting PsychoPy
+    setPsychopyOutput([]);
+
+    // Simulate running terminal commands for PsychoPy
+    const commands = [
+      'cd /path/to/psychopy',
+      'source activate psychopy_env',
+      'python psychopy_runner.py --display 0',
+    ];
+
+    // Simulate command execution with output
+    for (let i = 0; i < commands.length; i++) {
+      const command = commands[i];
+      setPsychopyOutput(prev => [...prev, `$ ${command}`]);
+
+      // Simulate command output
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      if (i === commands.length - 1) {
+        setPsychopyOutput(prev => [
+          ...prev,
+          'PsychoPy Builder starting...',
+          'Display initialized on screen 0',
+          'Task presentation ready',
+          '✓ PsychoPy started successfully'
+        ]);
+      } else {
+        setPsychopyOutput(prev => [...prev, '✓ Command executed']);
+      }
+    }
+
     setTimeout(() => {
       setPsychopyStarted(true);
       setIsStartingPsychoPy(false);
@@ -198,7 +259,7 @@ export default function RunScan() {
         title: 'PsychoPy started',
         description: 'Task presentation system is now running',
       });
-    }, 1000);
+    }, 500);
   };
 
   const handleReset = async () => {
@@ -243,6 +304,9 @@ export default function RunScan() {
     setManualWorkflowStep(null);
     setMurfiStarted(false);
     setPsychopyStarted(false);
+    setMurfiOutput([]);
+    setPsychopyOutput([]);
+    setInitializeConfirmed(false);
     setSessionId(null);
     setSessionStartTime(null);
     setPsychopyConfig({
@@ -261,6 +325,15 @@ export default function RunScan() {
     if (step === 'initialize' || step === 'participant' || completedSteps.includes(step)) {
       setManualWorkflowStep(step);
     }
+  };
+
+  const handleConfirmInitialize = () => {
+    setInitializeConfirmed(true);
+    setManualWorkflowStep('participant');
+    toast({
+      title: 'Initialization confirmed',
+      description: 'Proceeding to participant selection',
+    });
   };
 
   return (
@@ -294,6 +367,10 @@ export default function RunScan() {
             onStartPsychoPy={handleStartPsychoPy}
             isStartingMurfi={isStartingMurfi}
             isStartingPsychoPy={isStartingPsychoPy}
+            murfiOutput={murfiOutput}
+            psychopyOutput={psychopyOutput}
+            onConfirmProceed={handleConfirmInitialize}
+            canProceed={murfiStarted && psychopyStarted}
           />
         )}
 

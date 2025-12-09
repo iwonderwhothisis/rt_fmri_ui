@@ -1,7 +1,8 @@
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { CheckCircle2, Play, Loader2 } from 'lucide-react';
+import { CheckCircle2, Play, Loader2, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useEffect, useRef } from 'react';
 
 interface InitializeStepProps {
   murfiStarted: boolean;
@@ -10,6 +11,10 @@ interface InitializeStepProps {
   onStartPsychoPy: () => void;
   isStartingMurfi?: boolean;
   isStartingPsychoPy?: boolean;
+  murfiOutput?: string[];
+  psychopyOutput?: string[];
+  onConfirmProceed?: () => void;
+  canProceed?: boolean;
 }
 
 export function InitializeStep({
@@ -19,7 +24,26 @@ export function InitializeStep({
   onStartPsychoPy,
   isStartingMurfi = false,
   isStartingPsychoPy = false,
+  murfiOutput = [],
+  psychopyOutput = [],
+  onConfirmProceed,
+  canProceed = false,
 }: InitializeStepProps) {
+  const murfiOutputRef = useRef<HTMLDivElement>(null);
+  const psychopyOutputRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to bottom when output updates
+  useEffect(() => {
+    if (murfiOutputRef.current) {
+      murfiOutputRef.current.scrollTop = murfiOutputRef.current.scrollHeight;
+    }
+  }, [murfiOutput]);
+
+  useEffect(() => {
+    if (psychopyOutputRef.current) {
+      psychopyOutputRef.current.scrollTop = psychopyOutputRef.current.scrollHeight;
+    }
+  }, [psychopyOutput]);
   return (
     <Card className="p-6 bg-card border-border">
       <h2 className="text-xl font-semibold mb-4 text-foreground flex items-center gap-2">
@@ -77,6 +101,34 @@ export function InitializeStep({
               </>
             )}
           </Button>
+
+          {/* Terminal Output */}
+          {(murfiOutput.length > 0 || isStartingMurfi || murfiStarted) && (
+            <div className="mt-4">
+              <div className="text-xs font-semibold text-muted-foreground mb-2">Terminal Output:</div>
+              <div
+                ref={murfiOutputRef}
+                className="bg-black/90 text-green-400 font-mono text-xs p-3 rounded-lg border border-border/50 overflow-y-auto max-h-48"
+                style={{ minHeight: '120px' }}
+              >
+                {murfiOutput.length === 0 ? (
+                  <div className="text-muted-foreground/50">Waiting for output...</div>
+                ) : (
+                  murfiOutput.map((line, index) => (
+                    <div key={index} className="mb-1">
+                      {line.startsWith('$') ? (
+                        <span className="text-blue-400">{line}</span>
+                      ) : line.startsWith('✓') ? (
+                        <span className="text-green-400">{line}</span>
+                      ) : (
+                        <span>{line}</span>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
         </Card>
 
         {/* PsychoPy System */}
@@ -123,15 +175,55 @@ export function InitializeStep({
               </>
             )}
           </Button>
+
+          {/* Terminal Output */}
+          {(psychopyOutput.length > 0 || isStartingPsychoPy || psychopyStarted) && (
+            <div className="mt-4">
+              <div className="text-xs font-semibold text-muted-foreground mb-2">Terminal Output:</div>
+              <div
+                ref={psychopyOutputRef}
+                className="bg-black/90 text-green-400 font-mono text-xs p-3 rounded-lg border border-border/50 overflow-y-auto max-h-48"
+                style={{ minHeight: '120px' }}
+              >
+                {psychopyOutput.length === 0 ? (
+                  <div className="text-muted-foreground/50">Waiting for output...</div>
+                ) : (
+                  psychopyOutput.map((line, index) => (
+                    <div key={index} className="mb-1">
+                      {line.startsWith('$') ? (
+                        <span className="text-blue-400">{line}</span>
+                      ) : line.startsWith('✓') ? (
+                        <span className="text-green-400">{line}</span>
+                      ) : (
+                        <span>{line}</span>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
         </Card>
       </div>
 
       {murfiStarted && psychopyStarted && (
         <div className="mt-6 p-4 rounded-lg bg-success/10 border border-success/20">
-          <p className="text-sm text-success font-medium flex items-center gap-2">
-            <CheckCircle2 className="h-4 w-4" />
-            Both systems are running. You can proceed to participant selection.
-          </p>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <p className="text-sm text-success font-medium flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4" />
+              Both systems are running. Ready to proceed to participant selection.
+            </p>
+            {onConfirmProceed && (
+              <Button
+                onClick={onConfirmProceed}
+                disabled={!canProceed}
+                className="bg-success hover:bg-success/90 text-success-foreground w-full sm:w-auto"
+              >
+                <ArrowRight className="mr-2 h-4 w-4" />
+                Proceed to Participant Selection
+              </Button>
+            )}
+          </div>
         </div>
       )}
     </Card>
