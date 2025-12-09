@@ -1,4 +1,3 @@
-import { Card } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import {
@@ -17,7 +16,7 @@ interface PsychoPyConfigProps {
 
 export function PsychoPyConfigComponent({ config, onChange }: PsychoPyConfigProps) {
   return (
-    <Card className="p-6 bg-card border-border">
+    <div>
       <h3 className="text-lg font-semibold mb-4 text-foreground">PsychoPy Configuration</h3>
 
       <div className="grid grid-cols-2 gap-4">
@@ -67,6 +66,6 @@ export function PsychoPyConfigComponent({ config, onChange }: PsychoPyConfigProp
           </Select>
         </div>
       </div>
-    </Card>
+    </div>
   );
 }
