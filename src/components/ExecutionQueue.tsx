@@ -87,7 +87,7 @@ export function QueueItemCard({ item, index, onRemove }: QueueItemCardProps) {
       ref={setNodeRef}
       style={style}
       className={cn(
-        'p-3 flex items-center gap-3 border transition-all',
+        'p-2 flex items-center gap-2 border transition-all shrink-0',
         statusConfig.bgColor,
         statusConfig.borderColor,
         isDragging && 'shadow-lg'
@@ -96,30 +96,27 @@ export function QueueItemCard({ item, index, onRemove }: QueueItemCardProps) {
       <div
         {...attributes}
         {...listeners}
-        className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground transition-colors"
+        className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
       >
-        <GripVertical className="h-5 w-5" />
+        <GripVertical className="h-3.5 w-3.5" />
       </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-mono text-muted-foreground">#{index + 1}</span>
-          <span className="text-sm font-medium text-foreground">{formatStepName(item.step)}</span>
-        </div>
-        <div className="flex items-center gap-2 mt-1">
-          <StatusIcon
-            className={cn('h-3.5 w-3.5', statusConfig.color, item.status === 'running' && 'animate-spin')}
-          />
-          <span className={cn('text-xs', statusConfig.color)}>{statusConfig.label}</span>
-        </div>
+      <div className="flex items-center gap-1.5 min-w-0">
+        <span className="text-xs font-mono text-muted-foreground flex-shrink-0">#{index + 1}</span>
+        <span className="text-xs font-medium text-foreground truncate">{formatStepName(item.step)}</span>
+      </div>
+      <div className="flex items-center gap-1 flex-shrink-0">
+        <StatusIcon
+          className={cn('h-3 w-3', statusConfig.color, item.status === 'running' && 'animate-spin')}
+        />
       </div>
       <Button
         variant="ghost"
         size="icon"
-        className="h-7 w-7 text-muted-foreground hover:text-destructive"
+        className="h-5 w-5 text-muted-foreground hover:text-destructive flex-shrink-0"
         onClick={() => onRemove(item.id)}
         disabled={item.status === 'running'}
       >
-        <X className="h-4 w-4" />
+        <X className="h-3 w-3" />
       </Button>
     </Card>
   );
@@ -144,7 +141,7 @@ export function ExecutionQueue({ items, onRemove, onReorder }: ExecutionQueuePro
   }
 
   return (
-    <div className="space-y-2">
+    <div className="flex flex-wrap gap-2">
       {items.map((item, index) => (
         <QueueItemCard
           key={item.id}

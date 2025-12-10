@@ -323,7 +323,7 @@ export function SessionControls({
                   </div>
                 ) : (
                   <SortableContext items={queueItems.map(item => item.id)} strategy={verticalListSortingStrategy}>
-                    <div className="space-y-2">
+                    <div className="flex flex-wrap gap-2">
                       {queueItems.map((item, index) => (
                         <QueueItemCard
                           key={item.id}
