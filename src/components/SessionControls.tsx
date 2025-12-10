@@ -33,6 +33,7 @@ interface SessionControlsProps {
   sessionSteps: SessionStep[];
   queueItems: QueueItem[];
   queuePaused: boolean;
+  queueStarted: boolean;
   onStart: () => void;
   onReset: () => void;
   onAddToQueue: (step: SessionStep) => void;
@@ -40,6 +41,7 @@ interface SessionControlsProps {
   onReorderQueue: (startIndex: number, endIndex: number) => void;
   onClearQueue: () => void;
   onTogglePause: () => void;
+  onStartQueue: () => void;
 }
 
 function DraggableStepCard({ step }: { step: SessionStep }) {
@@ -108,6 +110,7 @@ export function SessionControls({
   sessionSteps,
   queueItems,
   queuePaused,
+  queueStarted,
   onStart,
   onReset,
   onAddToQueue,
@@ -115,6 +118,7 @@ export function SessionControls({
   onReorderQueue,
   onClearQueue,
   onTogglePause,
+  onStartQueue,
 }: SessionControlsProps) {
   const isConfigValid = config?.participantId && config?.psychopyConfig;
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -158,15 +162,19 @@ export function SessionControls({
     if (!over) return;
 
     const stepData = active.data.current;
+    const isDraggingStep = stepData?.type === 'step';
+    const isDraggingQueueItem = queueItems.some(item => item.id === active.id);
+    const isOverQueueItem = queueItems.some(item => item.id === over.id);
+    const isOverDropZone = over.id === 'queue-drop-zone';
 
-    // If dropping a step into the queue
-    if (stepData?.type === 'step' && over.id === 'queue-drop-zone') {
+    // If dropping a step (from available steps) into the queue area
+    if (isDraggingStep && (isOverDropZone || isOverQueueItem)) {
       onAddToQueue(stepData.step);
       return;
     }
 
-    // If reordering within queue
-    if (active.id !== over.id && queueItems.some(item => item.id === active.id)) {
+    // If reordering within queue (both active and over are queue items, and we're not dragging a step)
+    if (!isDraggingStep && isDraggingQueueItem && isOverQueueItem && active.id !== over.id) {
       const oldIndex = queueItems.findIndex(item => item.id === active.id);
       const newIndex = queueItems.findIndex(item => item.id === over.id);
       if (oldIndex !== -1 && newIndex !== -1) {
@@ -261,24 +269,37 @@ export function SessionControls({
                   </span>
                   {queueItems.length > 0 && (
                     <>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={onTogglePause}
-                        className="h-7"
-                      >
-                        {queuePaused ? (
-                          <>
-                            <Play className="h-3 w-3 mr-1" />
-                            Resume
-                          </>
-                        ) : (
-                          <>
-                            <Pause className="h-3 w-3 mr-1" />
-                            Pause
-                          </>
-                        )}
-                      </Button>
+                      {!queueStarted ? (
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={onStartQueue}
+                          className="h-7 bg-primary hover:bg-primary/90"
+                          disabled={pendingCount === 0}
+                        >
+                          <Play className="h-3 w-3 mr-1" />
+                          Start Queue
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={onTogglePause}
+                          className="h-7"
+                        >
+                          {queuePaused ? (
+                            <>
+                              <Play className="h-3 w-3 mr-1" />
+                              Resume
+                            </>
+                          ) : (
+                            <>
+                              <Pause className="h-3 w-3 mr-1" />
+                              Pause
+                            </>
+                          )}
+                        </Button>
+                      )}
                       <Button
                         variant="outline"
                         size="sm"

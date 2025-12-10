@@ -52,6 +52,7 @@ export default function RunScan() {
   const [initializeConfirmed, setInitializeConfirmed] = useState(false);
   const [executionQueue, setExecutionQueue] = useState<QueueItem[]>([]);
   const [queuePaused, setQueuePaused] = useState(false);
+  const [queueStarted, setQueueStarted] = useState(false);
   const { toast } = useToast();
 
   // Determine workflow step based on state
@@ -208,6 +209,15 @@ export default function RunScan() {
     setQueuePaused(prev => !prev);
   };
 
+  const handleStartQueue = () => {
+    setQueueStarted(true);
+    setQueuePaused(false);
+    toast({
+      title: 'Queue started',
+      description: 'Execution will begin processing queued items',
+    });
+  };
+
   // Execute a queue item
   const executeQueueItem = useCallback(async (item: QueueItem) => {
     // Mark as running
@@ -284,7 +294,7 @@ export default function RunScan() {
 
   // Auto-execution logic
   useEffect(() => {
-    if (queuePaused || !sessionInitialized) return;
+    if (!queueStarted || queuePaused || !sessionInitialized) return;
 
     const pendingItem = executionQueue.find(item => item.status === 'pending');
     const runningItem = executionQueue.find(item => item.status === 'running');
@@ -296,7 +306,7 @@ export default function RunScan() {
     if (pendingItem && !isRunning) {
       executeQueueItem(pendingItem);
     }
-  }, [executionQueue, queuePaused, sessionInitialized, isRunning, executeQueueItem]);
+  }, [executionQueue, queueStarted, queuePaused, sessionInitialized, isRunning, executeQueueItem]);
 
   const handleStartSession = () => {
     if (!sessionConfig) return;
@@ -313,6 +323,7 @@ export default function RunScan() {
     setRunningSteps(new Set());
     setExecutionQueue([]);
     setQueuePaused(false);
+    setQueueStarted(false);
     setManualWorkflowStep(null);
 
     toast({
@@ -445,6 +456,7 @@ export default function RunScan() {
     setRunningSteps(new Set());
     setExecutionQueue([]);
     setQueuePaused(false);
+    setQueueStarted(false);
     setIsRunning(false);
     setManualWorkflowStep(null);
     setMurfiStarted(false);
@@ -584,6 +596,7 @@ export default function RunScan() {
                 sessionSteps={sessionSteps}
                 queueItems={executionQueue}
                 queuePaused={queuePaused}
+                queueStarted={queueStarted}
                 onStart={handleStartSession}
                 onReset={handleReset}
                 onAddToQueue={handleAddToQueue}
@@ -591,6 +604,7 @@ export default function RunScan() {
                 onReorderQueue={handleReorderQueue}
                 onClearQueue={handleClearQueue}
                 onTogglePause={handleTogglePause}
+                onStartQueue={handleStartQueue}
               />
 
               <StepHistory history={stepHistory} />
