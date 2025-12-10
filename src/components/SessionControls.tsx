@@ -79,9 +79,6 @@ function DraggableStepCard({ step }: { step: SessionStep }) {
           {formatStepName(step)}
         </span>
       </div>
-      <p className="text-xs text-muted-foreground mt-1 ml-6">
-        Drag to queue
-      </p>
     </Card>
   );
 }
