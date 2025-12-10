@@ -8,7 +8,6 @@ import { WorkflowStepper, WorkflowStep } from '@/components/WorkflowStepper';
 import { InitializeStep } from '@/components/InitializeStep';
 import { PsychoPyConfig, SessionConfig, SessionStepHistory, SessionStep, Session } from '@/types/session';
 import { sessionService } from '@/services/mockSessionService';
-import { useToast } from '@/hooks/use-toast';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, CheckCircle2, Loader2 } from 'lucide-react';
@@ -52,7 +51,6 @@ export default function RunScan() {
   const [queueStopped, setQueueStopped] = useState(false);
   const [setupCompleted, setSetupCompleted] = useState(false);
   const stoppedItemsRef = useRef<Set<string>>(new Set());
-  const { toast } = useToast();
 
   // Determine workflow step based on state
   const getCurrentWorkflowStep = (): WorkflowStep => {
@@ -113,11 +111,6 @@ export default function RunScan() {
       const startedStep = await sessionService.startStep('setup');
       setStepHistory(prev => [...prev, startedStep]);
 
-      toast({
-        title: 'Starting setup',
-        description: 'Executing setup step...',
-      });
-
       // Simulate step execution
       const completedStep = await sessionService.completeStep('setup');
       setStepHistory(prev =>
@@ -140,12 +133,7 @@ export default function RunScan() {
       });
 
       setSetupCompleted(true);
-      setManualWorkflowStep('configure');
-
-      toast({
-        title: 'Setup completed',
-        description: 'You can now proceed to configure PsychoPy settings',
-      });
+    setManualWorkflowStep('configure');
     } catch (error) {
       setRunningSteps(prev => {
         const next = new Set(prev);
@@ -153,11 +141,6 @@ export default function RunScan() {
         return next;
       });
       setIsRunning(false);
-      toast({
-        title: 'Setup failed',
-        description: 'Failed to complete setup step',
-        variant: 'destructive',
-      });
     }
   };
 
@@ -182,11 +165,6 @@ export default function RunScan() {
       const startedStep = await sessionService.startStep(step);
       setStepHistory(prev => [...prev, startedStep]);
 
-      toast({
-        title: `Starting ${step}`,
-        description: 'Executing step...',
-      });
-
       // Simulate step execution
       const completedStep = await sessionService.completeStep(step);
       setStepHistory(prev =>
@@ -209,10 +187,6 @@ export default function RunScan() {
         return next;
       });
 
-      toast({
-        title: `${step} completed`,
-        description: completedStep.message,
-      });
     } catch (error) {
       setRunningSteps(prev => {
         const next = new Set(prev);
@@ -220,11 +194,6 @@ export default function RunScan() {
         return next;
       });
       setIsRunning(false);
-      toast({
-        title: 'Step error',
-        description: `An error occurred during ${step} execution`,
-        variant: 'destructive',
-      });
     }
   };
 
@@ -261,11 +230,6 @@ export default function RunScan() {
       // Only clear non-running items
       const hasRunning = prev.some(item => item.status === 'running');
       if (hasRunning) {
-        toast({
-          title: 'Cannot clear queue',
-          description: 'Please wait for running items to complete',
-          variant: 'destructive',
-        });
         return prev;
       }
       return [];
@@ -332,28 +296,14 @@ export default function RunScan() {
         }];
       }
     });
-
-    toast({
-      title: 'Step stopped',
-      description: `${runningItem.step} has been stopped and marked as failed. Execution paused.`,
-      variant: 'destructive',
-    });
   };
 
   const handleResume = () => {
     setQueueStopped(false);
-    toast({
-      title: 'Execution resumed',
-      description: 'Queue execution will continue with next pending item',
-    });
   };
 
   const handleStartQueue = () => {
     setQueueStarted(true);
-    toast({
-      title: 'Queue started',
-      description: 'Execution will begin processing queued items',
-    });
   };
 
   // Execute a queue item
@@ -370,11 +320,6 @@ export default function RunScan() {
       // Start step
       const startedStep = await sessionService.startStep(item.step);
       setStepHistory(prev => [...prev, startedStep]);
-
-      toast({
-        title: `Starting ${item.step}`,
-        description: 'Executing step from queue...',
-      });
 
       // Simulate step execution
       const completedStep = await sessionService.completeStep(item.step);
@@ -422,10 +367,6 @@ export default function RunScan() {
         return next;
       });
 
-      toast({
-        title: `${item.step} completed`,
-        description: completedStep.message,
-      });
     } catch (error) {
       // Mark as failed
       setExecutionQueue(prev =>
@@ -440,13 +381,8 @@ export default function RunScan() {
         return next;
       });
       setIsRunning(false);
-      toast({
-        title: 'Step error',
-        description: `An error occurred during ${item.step} execution`,
-        variant: 'destructive',
-      });
     }
-  }, [toast]);
+  }, []);
 
   // Auto-execution logic
   useEffect(() => {
@@ -499,11 +435,6 @@ export default function RunScan() {
     stoppedItemsRef.current.clear();
     setSetupCompleted(false);
     setManualWorkflowStep(null);
-
-    toast({
-      title: 'Session initialized',
-      description: `Session ready for participant ${sessionConfig.participantId}. Drag steps to queue to execute.`,
-    });
   };
 
   const handleStartMurfi = async () => {
@@ -541,10 +472,6 @@ export default function RunScan() {
     setTimeout(() => {
       setMurfiStarted(true);
       setIsStartingMurfi(false);
-      toast({
-        title: 'Murfi started',
-        description: 'Real-time fMRI processing system is now running',
-      });
     }, 500);
   };
 
@@ -583,10 +510,6 @@ export default function RunScan() {
     setTimeout(() => {
       setPsychopyStarted(true);
       setIsStartingPsychoPy(false);
-      toast({
-        title: 'PsychoPy started',
-        description: 'Task presentation system is now running',
-      });
     }, 500);
   };
 
@@ -605,20 +528,11 @@ export default function RunScan() {
 
         await sessionService.createSession(session);
 
-        toast({
-          title: 'Session saved',
-          description: 'Session has been saved to previous scans',
-        });
-
         // Navigate to the session detail page
         navigate(`/session/${sessionId}`);
         return;
       } catch (error) {
-        toast({
-          title: 'Error saving session',
-          description: 'Failed to save session data',
-          variant: 'destructive',
-        });
+        // Error saving session - silently fail
       }
     }
 
@@ -647,10 +561,6 @@ export default function RunScan() {
       participantAnchor: 'toe',
       feedbackCondition: '15min',
     });
-    toast({
-      title: 'Session reset',
-      description: 'Ready for new session',
-    });
   };
 
   const handleWorkflowStepClick = (step: WorkflowStep) => {
@@ -663,10 +573,6 @@ export default function RunScan() {
   const handleConfirmInitialize = () => {
     setInitializeConfirmed(true);
     setManualWorkflowStep('participant');
-    toast({
-      title: 'Initialization confirmed',
-      description: 'Proceeding to participant selection',
-    });
   };
 
   return (

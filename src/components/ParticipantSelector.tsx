@@ -27,7 +27,6 @@ import {
 import { Participant } from '@/types/session';
 import { sessionService } from '@/services/mockSessionService';
 import { UserPlus, Loader2 } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
 
 interface ParticipantSelectorProps {
   onParticipantSelect: (participantId: string, isNew?: boolean) => void;
@@ -41,7 +40,6 @@ export function ParticipantSelector({ onParticipantSelect, selectedParticipantId
   const [showNewForm, setShowNewForm] = useState(false);
   const [newParticipantId, setNewParticipantId] = useState('');
   const [creating, setCreating] = useState(false);
-  const { toast } = useToast();
 
   useEffect(() => {
     loadParticipants();
@@ -52,11 +50,7 @@ export function ParticipantSelector({ onParticipantSelect, selectedParticipantId
       const data = await sessionService.getParticipants();
       setParticipants(data);
     } catch (error) {
-      toast({
-        title: 'Error loading participants',
-        description: 'Failed to fetch participant list',
-        variant: 'destructive',
-      });
+      // Error loading participants - silently fail
     } finally {
       setLoading(false);
     }
@@ -64,21 +58,11 @@ export function ParticipantSelector({ onParticipantSelect, selectedParticipantId
 
   const handleCreateParticipant = async () => {
     if (!newParticipantId.trim()) {
-      toast({
-        title: 'Validation Error',
-        description: 'Please enter a Participant ID',
-        variant: 'destructive',
-      });
       return;
     }
 
     // Check if ID already exists
     if (participants.some(p => p.id === newParticipantId.trim())) {
-      toast({
-        title: 'Validation Error',
-        description: 'Participant ID already exists',
-        variant: 'destructive',
-      });
       return;
     }
 
@@ -93,18 +77,10 @@ export function ParticipantSelector({ onParticipantSelect, selectedParticipantId
       onParticipantSelect(created.id, true);
       setShowNewForm(false);
       setNewParticipantId('');
-      toast({
-        title: 'Participant created',
-        description: `${created.id} added successfully`,
-      });
       // Reload participants to ensure fresh data
       loadParticipants();
     } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to create participant',
-        variant: 'destructive',
-      });
+      // Error creating participant - silently fail
     } finally {
       setCreating(false);
     }
