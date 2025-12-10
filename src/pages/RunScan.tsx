@@ -1,23 +1,20 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ParticipantSelector } from '@/components/ParticipantSelector';
 import { PsychoPyConfigComponent } from '@/components/PsychoPyConfig';
 import { SessionControls } from '@/components/SessionControls';
-import { StepHistory } from '@/components/StepHistory';
 import { BrainScanPreview } from '@/components/BrainScanPreview';
 import { WorkflowStepper, WorkflowStep } from '@/components/WorkflowStepper';
-import { SessionStatusDashboard } from '@/components/SessionStatusDashboard';
 import { InitializeStep } from '@/components/InitializeStep';
 import { PsychoPyConfig, SessionConfig, SessionStepHistory, SessionStep, Session } from '@/types/session';
 import { sessionService } from '@/services/mockSessionService';
 import { useToast } from '@/hooks/use-toast';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, CheckCircle2 } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Loader2 } from 'lucide-react';
+import { QueueItem } from '@/components/ExecutionQueue';
 
 export const sessionSteps: SessionStep[] = [
-  'create',
-  'setup',
   '2vol',
   'resting_state',
   'extract_rs_networks',
@@ -50,13 +47,19 @@ export default function RunScan() {
   const [murfiOutput, setMurfiOutput] = useState<string[]>([]);
   const [psychopyOutput, setPsychopyOutput] = useState<string[]>([]);
   const [initializeConfirmed, setInitializeConfirmed] = useState(false);
+  const [executionQueue, setExecutionQueue] = useState<QueueItem[]>([]);
+  const [queueStarted, setQueueStarted] = useState(false);
+  const [queueStopped, setQueueStopped] = useState(false);
+  const [setupCompleted, setSetupCompleted] = useState(false);
+  const stoppedItemsRef = useRef<Set<string>>(new Set());
   const { toast } = useToast();
 
   // Determine workflow step based on state
   const getCurrentWorkflowStep = (): WorkflowStep => {
     if (sessionInitialized) return 'execute';
     if (sessionConfig?.participantId && sessionConfig?.psychopyConfig) return 'execute';
-    if (sessionConfig?.participantId) return 'configure';
+    if (sessionConfig?.participantId && setupCompleted) return 'configure';
+    if (sessionConfig?.participantId) return 'participant';
     if (murfiStarted && psychopyStarted && initializeConfirmed) return 'participant';
     return 'initialize';
   };
@@ -64,7 +67,10 @@ export default function RunScan() {
   const getCompletedWorkflowSteps = (): WorkflowStep[] => {
     const completed: WorkflowStep[] = [];
     if (murfiStarted && psychopyStarted && initializeConfirmed) completed.push('initialize');
-    if (sessionConfig?.participantId) completed.push('participant');
+    // Participant step is completed when participant is selected and setup is done
+    if (sessionConfig?.participantId && setupCompleted) {
+      completed.push('participant');
+    }
     if (sessionConfig?.participantId && sessionConfig?.psychopyConfig) completed.push('configure');
     if (sessionInitialized) completed.push('execute');
     return completed;
@@ -81,14 +87,78 @@ export default function RunScan() {
     }
   }, [calculatedWorkflowStep, completedSteps, manualWorkflowStep]);
 
-  const handleParticipantSelect = (participantId: string) => {
+  const handleParticipantSelect = (participantId: string, isNewParticipant: boolean = false) => {
     setSessionConfig({
       participantId,
       sessionDate: new Date().toISOString().split('T')[0],
       protocol: 'DMN-NFB',
       psychopyConfig,
     });
-    setManualWorkflowStep('configure');
+    setSetupCompleted(false);
+
+    // If creating a new participant, run the create step
+    if (isNewParticipant) {
+      handleRunStep('create');
+    }
+  };
+
+  const handleSetup = async () => {
+    if (runningSteps.has('setup')) return;
+
+    setRunningSteps(prev => new Set(prev).add('setup'));
+    setIsRunning(true);
+
+    try {
+      // Start step
+      const startedStep = await sessionService.startStep('setup');
+      setStepHistory(prev => [...prev, startedStep]);
+
+      toast({
+        title: 'Starting setup',
+        description: 'Executing setup step...',
+      });
+
+      // Simulate step execution
+      const completedStep = await sessionService.completeStep('setup');
+      setStepHistory(prev =>
+        prev.map((s, i) => i === prev.length - 1 ? completedStep : s)
+      );
+
+      // Increment execution count for this step
+      setStepExecutionCounts(prev => {
+        const newCounts = new Map(prev);
+        const currentCount = newCounts.get('setup') || 0;
+        newCounts.set('setup', currentCount + 1);
+        return newCounts;
+      });
+
+      setIsRunning(false);
+      setRunningSteps(prev => {
+        const next = new Set(prev);
+        next.delete('setup');
+        return next;
+      });
+
+      setSetupCompleted(true);
+      setManualWorkflowStep('configure');
+
+      toast({
+        title: 'Setup completed',
+        description: 'You can now proceed to configure PsychoPy settings',
+      });
+    } catch (error) {
+      setRunningSteps(prev => {
+        const next = new Set(prev);
+        next.delete('setup');
+        return next;
+      });
+      setIsRunning(false);
+      toast({
+        title: 'Setup failed',
+        description: 'Failed to complete setup step',
+        variant: 'destructive',
+      });
+    }
   };
 
   const handlePsychoPyConfigChange = (config: PsychoPyConfig) => {
@@ -158,11 +228,263 @@ export default function RunScan() {
     }
   };
 
-  const handleStartSession = () => {
+  // Queue management handlers
+  const handleAddToQueue = (step: SessionStep) => {
+    const newItem: QueueItem = {
+      id: `queue-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
+      step,
+      status: 'pending',
+    };
+    setExecutionQueue(prev => [...prev, newItem]);
+  };
+
+  const handleRemoveFromQueue = (id: string) => {
+    setExecutionQueue(prev => {
+      const item = prev.find(i => i.id === id);
+      // Don't allow removing running items
+      if (item?.status === 'running') return prev;
+      return prev.filter(i => i.id !== id);
+    });
+  };
+
+  const handleReorderQueue = (startIndex: number, endIndex: number) => {
+    setExecutionQueue(prev => {
+      const newQueue = [...prev];
+      const [removed] = newQueue.splice(startIndex, 1);
+      newQueue.splice(endIndex, 0, removed);
+      return newQueue;
+    });
+  };
+
+  const handleClearQueue = () => {
+    setExecutionQueue(prev => {
+      // Only clear non-running items
+      const hasRunning = prev.some(item => item.status === 'running');
+      if (hasRunning) {
+        toast({
+          title: 'Cannot clear queue',
+          description: 'Please wait for running items to complete',
+          variant: 'destructive',
+        });
+        return prev;
+      }
+      return [];
+    });
+  };
+
+  const handleStop = () => {
+    // Find the currently running item in the queue
+    const runningItem = executionQueue.find(item => item.status === 'running');
+    if (!runningItem) return;
+
+    // Mark this item as stopped in the ref
+    stoppedItemsRef.current.add(runningItem.id);
+
+    // Mark the running item as failed
+    setExecutionQueue(prev =>
+      prev.map(item =>
+        item.id === runningItem.id ? { ...item, status: 'failed' as const } : item
+      )
+    );
+
+    // Pause execution
+    setQueueStopped(true);
+
+    // Remove from running steps
+    setRunningSteps(prev => {
+      const next = new Set(prev);
+      next.delete(runningItem.step);
+      return next;
+    });
+
+    setIsRunning(false);
+
+    // Update the started step entry to failed in history
+    setStepHistory(prev => {
+      // Find the last entry for this step (should be the 'running' entry)
+      let lastIndex = -1;
+      for (let i = prev.length - 1; i >= 0; i--) {
+        if (prev[i].step === runningItem.step) {
+          lastIndex = i;
+          break;
+        }
+      }
+
+      if (lastIndex >= 0) {
+        // Update the last entry for this step to failed
+        return prev.map((s, i) =>
+          i === lastIndex
+            ? {
+                ...s,
+                status: 'failed' as const,
+                message: 'Step was stopped by user',
+                duration: s.duration || (Date.now() - new Date(s.timestamp).getTime()) / 1000
+              }
+            : s
+        );
+      } else {
+        // If no entry exists, add a new failed entry
+        return [...prev, {
+          step: runningItem.step,
+          status: 'failed' as const,
+          timestamp: new Date().toISOString(),
+          message: 'Step was stopped by user',
+        }];
+      }
+    });
+
+    toast({
+      title: 'Step stopped',
+      description: `${runningItem.step} has been stopped and marked as failed. Execution paused.`,
+      variant: 'destructive',
+    });
+  };
+
+  const handleResume = () => {
+    setQueueStopped(false);
+    toast({
+      title: 'Execution resumed',
+      description: 'Queue execution will continue with next pending item',
+    });
+  };
+
+  const handleStartQueue = () => {
+    setQueueStarted(true);
+    toast({
+      title: 'Queue started',
+      description: 'Execution will begin processing queued items',
+    });
+  };
+
+  // Execute a queue item
+  const executeQueueItem = useCallback(async (item: QueueItem) => {
+    // Mark as running
+    setExecutionQueue(prev =>
+      prev.map(i => (i.id === item.id ? { ...i, status: 'running' as const } : i))
+    );
+
+    setRunningSteps(prev => new Set(prev).add(item.step));
+    setIsRunning(true);
+
+    try {
+      // Start step
+      const startedStep = await sessionService.startStep(item.step);
+      setStepHistory(prev => [...prev, startedStep]);
+
+      toast({
+        title: `Starting ${item.step}`,
+        description: 'Executing step from queue...',
+      });
+
+      // Simulate step execution
+      const completedStep = await sessionService.completeStep(item.step);
+
+      // Check if this item was stopped using the ref (most reliable check)
+      if (stoppedItemsRef.current.has(item.id)) {
+        // Item was stopped - don't update anything, just return
+        // Clean up the ref entry
+        stoppedItemsRef.current.delete(item.id);
+        return;
+      }
+
+      // Also check if item was stopped (marked as failed) in the queue state
+      setExecutionQueue(prev => {
+        const currentItem = prev.find(i => i.id === item.id);
+        // If item was stopped (status is 'failed'), don't update history or queue
+        if (currentItem?.status === 'failed') {
+          // Clean up the ref entry if it exists
+          stoppedItemsRef.current.delete(item.id);
+          return prev; // Return unchanged - item was stopped
+        }
+        // Otherwise, update history and mark as completed
+        setStepHistory(prevHistory =>
+          prevHistory.map((s, i) => i === prevHistory.length - 1 ? completedStep : s)
+        );
+        // Mark as completed
+        return prev.map(i =>
+          i.id === item.id ? { ...i, status: 'completed' as const } : i
+        );
+      });
+
+      // Item completed successfully - do cleanup and show success
+      // Increment execution count for this step
+      setStepExecutionCounts(prev => {
+        const newCounts = new Map(prev);
+        const currentCount = newCounts.get(item.step) || 0;
+        newCounts.set(item.step, currentCount + 1);
+        return newCounts;
+      });
+
+      setIsRunning(false);
+      setRunningSteps(prev => {
+        const next = new Set(prev);
+        next.delete(item.step);
+        return next;
+      });
+
+      toast({
+        title: `${item.step} completed`,
+        description: completedStep.message,
+      });
+    } catch (error) {
+      // Mark as failed
+      setExecutionQueue(prev =>
+        prev.map(i =>
+          i.id === item.id ? { ...i, status: 'failed' as const } : i
+        )
+      );
+
+      setRunningSteps(prev => {
+        const next = new Set(prev);
+        next.delete(item.step);
+        return next;
+      });
+      setIsRunning(false);
+      toast({
+        title: 'Step error',
+        description: `An error occurred during ${item.step} execution`,
+        variant: 'destructive',
+      });
+    }
+  }, [toast]);
+
+  // Auto-execution logic
+  useEffect(() => {
+    if (!queueStarted || !sessionInitialized || queueStopped) return;
+
+    const pendingItem = executionQueue.find(item => item.status === 'pending');
+    const runningItem = executionQueue.find(item => item.status === 'running');
+
+    // If there's already a running item, don't start another
+    if (runningItem) return;
+
+    // If there's a pending item and nothing running, execute it
+    if (pendingItem && !isRunning) {
+      executeQueueItem(pendingItem);
+    }
+  }, [executionQueue, queueStarted, queueStopped, sessionInitialized, isRunning, executeQueueItem]);
+
+  const handleStartSession = async () => {
     if (!sessionConfig) return;
 
-    // Generate session ID
-    const newSessionId = `S${Date.now().toString().slice(-6)}`;
+    // Generate session ID by counting up from existing sessions
+    const existingSessions = await sessionService.getPreviousSessions();
+    let maxId = 0;
+
+    // Find the highest session ID number
+    for (const session of existingSessions) {
+      const match = session.id.match(/^S(\d+)$/);
+      if (match) {
+        const idNum = parseInt(match[1], 10);
+        if (idNum > maxId) {
+          maxId = idNum;
+        }
+      }
+    }
+
+    // Generate next session ID (increment from max)
+    const nextId = maxId + 1;
+    const newSessionId = `S${nextId.toString().padStart(3, '0')}`;
     setSessionId(newSessionId);
     setSessionStartTime(new Date().toISOString());
 
@@ -171,11 +493,16 @@ export default function RunScan() {
     setStepHistory([]);
     setStepExecutionCounts(new Map());
     setRunningSteps(new Set());
+    setExecutionQueue([]);
+    setQueueStarted(false);
+    setQueueStopped(false);
+    stoppedItemsRef.current.clear();
+    setSetupCompleted(false);
     setManualWorkflowStep(null);
 
     toast({
       title: 'Session initialized',
-      description: `Session ready for participant ${sessionConfig.participantId}. Select steps to execute.`,
+      description: `Session ready for participant ${sessionConfig.participantId}. Drag steps to queue to execute.`,
     });
   };
 
@@ -301,6 +628,11 @@ export default function RunScan() {
     setSessionInitialized(false);
     setStepExecutionCounts(new Map());
     setRunningSteps(new Set());
+    setExecutionQueue([]);
+    setQueueStarted(false);
+    setQueueStopped(false);
+    stoppedItemsRef.current.clear();
+    setSetupCompleted(false);
     setIsRunning(false);
     setManualWorkflowStep(null);
     setMurfiStarted(false);
@@ -388,10 +720,40 @@ export default function RunScan() {
             </p>
 
             <ParticipantSelector
-              onParticipantSelect={handleParticipantSelect}
+              onParticipantSelect={(id, isNew) => handleParticipantSelect(id, isNew)}
               selectedParticipantId={sessionConfig?.participantId}
               inline={false}
             />
+
+            {sessionConfig?.participantId && !setupCompleted && (
+              <div className="mt-6 pt-6 border-t border-border">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-semibold text-foreground mb-1">Setup Required</h3>
+                    <p className="text-xs text-muted-foreground">
+                      Complete setup before proceeding to configuration
+                    </p>
+                  </div>
+                  <Button
+                    onClick={handleSetup}
+                    disabled={isRunning || runningSteps.has('setup')}
+                    className="bg-primary hover:bg-primary/90"
+                  >
+                    {runningSteps.has('setup') ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Running Setup...
+                      </>
+                    ) : (
+                      <>
+                        Run Setup
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            )}
           </Card>
         )}
 
@@ -433,28 +795,25 @@ export default function RunScan() {
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
             {/* Left Column - Controls and Status */}
             <div className="xl:col-span-2 space-y-6">
-              <SessionStatusDashboard
-                isInitialized={sessionInitialized}
-                isRunning={isRunning}
-                stepHistory={stepHistory}
-                totalSteps={sessionSteps.length}
-                runningSteps={runningSteps}
-              />
-
               <SessionControls
                 config={sessionConfig}
                 isRunning={isRunning}
                 sessionInitialized={sessionInitialized}
-                stepExecutionCounts={stepExecutionCounts}
-                runningSteps={runningSteps}
                 sessionSteps={sessionSteps}
-                stepHistory={stepHistory}
+                queueItems={executionQueue}
+                queueStarted={queueStarted}
+                queueStopped={queueStopped}
                 onStart={handleStartSession}
-                onRunStep={handleRunStep}
                 onReset={handleReset}
+                onAddToQueue={handleAddToQueue}
+                onRemoveFromQueue={handleRemoveFromQueue}
+                onReorderQueue={handleReorderQueue}
+                onClearQueue={handleClearQueue}
+                onStop={handleStop}
+                onResume={handleResume}
+                onStartQueue={handleStartQueue}
               />
 
-              <StepHistory history={stepHistory} />
             </div>
 
             {/* Right Column - Preview */}
