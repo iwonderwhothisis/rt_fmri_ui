@@ -6,10 +6,12 @@ import { SessionControls } from '@/components/SessionControls';
 import { BrainScanPreview } from '@/components/BrainScanPreview';
 import { WorkflowStepper, WorkflowStep } from '@/components/WorkflowStepper';
 import { InitializeStep } from '@/components/InitializeStep';
+import { InteractiveTerminal } from '@/components/InteractiveTerminal';
 import { PsychoPyConfig, SessionConfig, SessionStepHistory, SessionStep, Session } from '@/types/session';
 import { sessionService } from '@/services/mockSessionService';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { ArrowRight, CheckCircle2, Loader2 } from 'lucide-react';
 import { QueueItem } from '@/components/ExecutionQueue';
 
@@ -46,6 +48,9 @@ export default function RunScan() {
   const [murfiOutput, setMurfiOutput] = useState<string[]>([]);
   const [psychopyOutput, setPsychopyOutput] = useState<string[]>([]);
   const [initializeConfirmed, setInitializeConfirmed] = useState(false);
+  // Terminal command history (managed internally by InteractiveTerminal, but we keep for persistence)
+  const [murfiCommandHistory, setMurfiCommandHistory] = useState<string[]>([]);
+  const [psychopyCommandHistory, setPsychopyCommandHistory] = useState<string[]>([]);
   const [executionQueue, setExecutionQueue] = useState<QueueItem[]>([]);
   const [queueStarted, setQueueStarted] = useState(false);
   const [queueStopped, setQueueStopped] = useState(false);
@@ -575,6 +580,127 @@ export default function RunScan() {
     setManualWorkflowStep('participant');
   };
 
+  // Command execution handlers for terminals
+  const handleMurfiCommand = async (command: string) => {
+    setMurfiOutput(prev => [...prev, `$ ${command}`]);
+
+    // Simulate command execution with delay
+    await new Promise(resolve => setTimeout(resolve, 300));
+
+    // Parse and simulate command responses
+    const cmd = command.trim().toLowerCase();
+    const parts = cmd.split(/\s+/);
+    const baseCmd = parts[0];
+
+    if (baseCmd === 'cd') {
+      const path = parts[1] || '~';
+      setMurfiOutput(prev => [...prev, `Changed directory to ${path}`]);
+    } else if (baseCmd === 'ls' || baseCmd === 'dir') {
+      setMurfiOutput(prev => [
+        ...prev,
+        'murfi_server.py',
+        'config.yaml',
+        'data/',
+        'logs/',
+        '✓ Command executed'
+      ]);
+    } else if (baseCmd === 'ps' || baseCmd === 'status') {
+      if (murfiStarted) {
+        setMurfiOutput(prev => [
+          ...prev,
+          'PID   CMD',
+          '1234  python murfi_server.py --port 8080',
+          '✓ Murfi server is running'
+        ]);
+      } else {
+        setMurfiOutput(prev => [...prev, '✗ Murfi server is not running']);
+      }
+    } else if (baseCmd === 'pwd') {
+      setMurfiOutput(prev => [...prev, '/path/to/murfi']);
+    } else if (baseCmd === 'help') {
+      setMurfiOutput(prev => [
+        ...prev,
+        'Available commands:',
+        '  cd <path>     - Change directory',
+        '  ls, dir       - List files',
+        '  ps, status    - Check server status',
+        '  pwd           - Print working directory',
+        '  help          - Show this help',
+        '  clear         - Clear terminal output'
+      ]);
+    } else if (baseCmd === 'clear') {
+      setMurfiOutput([]);
+    } else if (baseCmd === '') {
+      // Empty command, do nothing
+    } else {
+      setMurfiOutput(prev => [
+        ...prev,
+        `✗ Command not found: ${baseCmd}`,
+        'Type "help" for available commands'
+      ]);
+    }
+  };
+
+  const handlePsychoPyCommand = async (command: string) => {
+    setPsychopyOutput(prev => [...prev, `$ ${command}`]);
+
+    // Simulate command execution with delay
+    await new Promise(resolve => setTimeout(resolve, 300));
+
+    // Parse and simulate command responses
+    const cmd = command.trim().toLowerCase();
+    const parts = cmd.split(/\s+/);
+    const baseCmd = parts[0];
+
+    if (baseCmd === 'cd') {
+      const path = parts[1] || '~';
+      setPsychopyOutput(prev => [...prev, `Changed directory to ${path}`]);
+    } else if (baseCmd === 'ls' || baseCmd === 'dir') {
+      setPsychopyOutput(prev => [
+        ...prev,
+        'psychopy_runner.py',
+        'experiment.psyexp',
+        'data/',
+        'stimuli/',
+        '✓ Command executed'
+      ]);
+    } else if (baseCmd === 'ps' || baseCmd === 'status') {
+      if (psychopyStarted) {
+        setPsychopyOutput(prev => [
+          ...prev,
+          'PID   CMD',
+          '5678  python psychopy_runner.py --display 0',
+          '✓ PsychoPy is running'
+        ]);
+      } else {
+        setPsychopyOutput(prev => [...prev, '✗ PsychoPy is not running']);
+      }
+    } else if (baseCmd === 'pwd') {
+      setPsychopyOutput(prev => [...prev, '/path/to/psychopy']);
+    } else if (baseCmd === 'help') {
+      setPsychopyOutput(prev => [
+        ...prev,
+        'Available commands:',
+        '  cd <path>     - Change directory',
+        '  ls, dir       - List files',
+        '  ps, status    - Check status',
+        '  pwd           - Print working directory',
+        '  help          - Show this help',
+        '  clear         - Clear terminal output'
+      ]);
+    } else if (baseCmd === 'clear') {
+      setPsychopyOutput([]);
+    } else if (baseCmd === '') {
+      // Empty command, do nothing
+    } else {
+      setPsychopyOutput(prev => [
+        ...prev,
+        `✗ Command not found: ${baseCmd}`,
+        'Type "help" for available commands'
+      ]);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-[1800px] mx-auto p-6 space-y-6">
@@ -608,6 +734,8 @@ export default function RunScan() {
             isStartingPsychoPy={isStartingPsychoPy}
             murfiOutput={murfiOutput}
             psychopyOutput={psychopyOutput}
+            onMurfiCommand={handleMurfiCommand}
+            onPsychoPyCommand={handlePsychoPyCommand}
             onConfirmProceed={handleConfirmInitialize}
             canProceed={murfiStarted && psychopyStarted}
           />
@@ -660,6 +788,33 @@ export default function RunScan() {
                 </div>
               </div>
             )}
+
+            {/* Terminals Section */}
+            <div className="mt-6 pt-6 border-t border-border">
+              <Accordion type="single" collapsible className="w-full">
+                <AccordionItem value="terminals">
+                  <AccordionTrigger className="text-sm font-semibold text-foreground">
+                    System Terminals
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                      <InteractiveTerminal
+                        name="Murfi"
+                        output={murfiOutput}
+                        onCommand={handleMurfiCommand}
+                        isActive={murfiStarted}
+                      />
+                      <InteractiveTerminal
+                        name="PsychoPy"
+                        output={psychopyOutput}
+                        onCommand={handlePsychoPyCommand}
+                        isActive={psychopyStarted}
+                      />
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+            </div>
           </Card>
         )}
 
@@ -693,6 +848,33 @@ export default function RunScan() {
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </div>
+
+              {/* Terminals Section */}
+              <div className="pt-6 border-t border-border">
+                <Accordion type="single" collapsible className="w-full">
+                  <AccordionItem value="terminals">
+                    <AccordionTrigger className="text-sm font-semibold text-foreground">
+                      System Terminals
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                        <InteractiveTerminal
+                          name="Murfi"
+                          output={murfiOutput}
+                          onCommand={handleMurfiCommand}
+                          isActive={murfiStarted}
+                        />
+                        <InteractiveTerminal
+                          name="PsychoPy"
+                          output={psychopyOutput}
+                          onCommand={handlePsychoPyCommand}
+                          isActive={psychopyStarted}
+                        />
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
+              </div>
             </div>
           </Card>
         )}
@@ -720,6 +902,24 @@ export default function RunScan() {
                 onStartQueue={handleStartQueue}
               />
 
+              {/* Terminals Section */}
+              <Card className="p-6 bg-card border-border">
+                <h3 className="text-lg font-semibold mb-4 text-foreground">System Terminals</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <InteractiveTerminal
+                    name="Murfi"
+                    output={murfiOutput}
+                    onCommand={handleMurfiCommand}
+                    isActive={murfiStarted}
+                  />
+                  <InteractiveTerminal
+                    name="PsychoPy"
+                    output={psychopyOutput}
+                    onCommand={handlePsychoPyCommand}
+                    isActive={psychopyStarted}
+                  />
+                </div>
+              </Card>
             </div>
 
             {/* Right Column - Preview */}
