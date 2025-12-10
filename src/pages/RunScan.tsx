@@ -66,7 +66,10 @@ export default function RunScan() {
   const getCompletedWorkflowSteps = (): WorkflowStep[] => {
     const completed: WorkflowStep[] = [];
     if (murfiStarted && psychopyStarted && initializeConfirmed) completed.push('initialize');
-    if (sessionConfig?.participantId && setupCompleted) completed.push('participant');
+    // Participant step is completed when participant is selected and setup is done
+    if (sessionConfig?.participantId && setupCompleted) {
+      completed.push('participant');
+    }
     if (sessionConfig?.participantId && sessionConfig?.psychopyConfig) completed.push('configure');
     if (sessionInitialized) completed.push('execute');
     return completed;
