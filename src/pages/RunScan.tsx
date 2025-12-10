@@ -48,8 +48,8 @@ export default function RunScan() {
   const [psychopyOutput, setPsychopyOutput] = useState<string[]>([]);
   const [initializeConfirmed, setInitializeConfirmed] = useState(false);
   const [executionQueue, setExecutionQueue] = useState<QueueItem[]>([]);
-  const [queuePaused, setQueuePaused] = useState(false);
   const [queueStarted, setQueueStarted] = useState(false);
+  const [queueStopped, setQueueStopped] = useState(false);
   const [setupCompleted, setSetupCompleted] = useState(false);
   const { toast } = useToast();
 
@@ -271,13 +271,56 @@ export default function RunScan() {
     });
   };
 
-  const handleTogglePause = () => {
-    setQueuePaused(prev => !prev);
+  const handleStop = () => {
+    // Find the currently running item in the queue
+    const runningItem = executionQueue.find(item => item.status === 'running');
+    if (!runningItem) return;
+
+    // Mark the running item as failed
+    setExecutionQueue(prev =>
+      prev.map(item =>
+        item.id === runningItem.id ? { ...item, status: 'failed' as const } : item
+      )
+    );
+
+    // Pause execution
+    setQueueStopped(true);
+
+    // Remove from running steps
+    setRunningSteps(prev => {
+      const next = new Set(prev);
+      next.delete(runningItem.step);
+      return next;
+    });
+
+    setIsRunning(false);
+
+    // Add failed step to history
+    const failedStep: SessionStepHistory = {
+      step: runningItem.step,
+      status: 'failed',
+      timestamp: new Date().toISOString(),
+      message: 'Step was stopped by user',
+    };
+    setStepHistory(prev => [...prev, failedStep]);
+
+    toast({
+      title: 'Step stopped',
+      description: `${runningItem.step} has been stopped and marked as failed. Execution paused.`,
+      variant: 'destructive',
+    });
+  };
+
+  const handleResume = () => {
+    setQueueStopped(false);
+    toast({
+      title: 'Execution resumed',
+      description: 'Queue execution will continue with next pending item',
+    });
   };
 
   const handleStartQueue = () => {
     setQueueStarted(true);
-    setQueuePaused(false);
     toast({
       title: 'Queue started',
       description: 'Execution will begin processing queued items',
@@ -310,12 +353,18 @@ export default function RunScan() {
         prev.map((s, i) => i === prev.length - 1 ? completedStep : s)
       );
 
-      // Mark as completed
-      setExecutionQueue(prev =>
-        prev.map(i =>
+      // Check if item was stopped (marked as failed) before marking as completed
+      setExecutionQueue(prev => {
+        const currentItem = prev.find(i => i.id === item.id);
+        // If item was stopped (status is 'failed'), don't overwrite it
+        if (currentItem?.status === 'failed') {
+          return prev; // Return unchanged - item was stopped
+        }
+        // Otherwise, mark as completed
+        return prev.map(i =>
           i.id === item.id ? { ...i, status: 'completed' as const } : i
-        )
-      );
+        );
+      });
 
       // Increment execution count for this step
       setStepExecutionCounts(prev => {
@@ -360,7 +409,7 @@ export default function RunScan() {
 
   // Auto-execution logic
   useEffect(() => {
-    if (!queueStarted || queuePaused || !sessionInitialized) return;
+    if (!queueStarted || !sessionInitialized || queueStopped) return;
 
     const pendingItem = executionQueue.find(item => item.status === 'pending');
     const runningItem = executionQueue.find(item => item.status === 'running');
@@ -372,7 +421,7 @@ export default function RunScan() {
     if (pendingItem && !isRunning) {
       executeQueueItem(pendingItem);
     }
-  }, [executionQueue, queueStarted, queuePaused, sessionInitialized, isRunning, executeQueueItem]);
+  }, [executionQueue, queueStarted, queueStopped, sessionInitialized, isRunning, executeQueueItem]);
 
   const handleStartSession = () => {
     if (!sessionConfig) return;
@@ -388,8 +437,8 @@ export default function RunScan() {
     setStepExecutionCounts(new Map());
     setRunningSteps(new Set());
     setExecutionQueue([]);
-    setQueuePaused(false);
     setQueueStarted(false);
+    setQueueStopped(false);
     setSetupCompleted(false);
     setManualWorkflowStep(null);
 
@@ -522,8 +571,8 @@ export default function RunScan() {
     setStepExecutionCounts(new Map());
     setRunningSteps(new Set());
     setExecutionQueue([]);
-    setQueuePaused(false);
     setQueueStarted(false);
+    setQueueStopped(false);
     setSetupCompleted(false);
     setIsRunning(false);
     setManualWorkflowStep(null);
@@ -693,15 +742,16 @@ export default function RunScan() {
                 sessionInitialized={sessionInitialized}
                 sessionSteps={sessionSteps}
                 queueItems={executionQueue}
-                queuePaused={queuePaused}
                 queueStarted={queueStarted}
+                queueStopped={queueStopped}
                 onStart={handleStartSession}
                 onReset={handleReset}
                 onAddToQueue={handleAddToQueue}
                 onRemoveFromQueue={handleRemoveFromQueue}
                 onReorderQueue={handleReorderQueue}
                 onClearQueue={handleClearQueue}
-                onTogglePause={handleTogglePause}
+                onStop={handleStop}
+                onResume={handleResume}
                 onStartQueue={handleStartQueue}
               />
 

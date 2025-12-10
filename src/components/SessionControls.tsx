@@ -20,7 +20,7 @@ import {
 } from '@dnd-kit/sortable';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Play, RotateCcw, AlertCircle, Check, Pause, Trash2, GripVertical } from 'lucide-react';
+import { Play, RotateCcw, AlertCircle, Check, Square, Trash2, GripVertical } from 'lucide-react';
 import { SessionConfig, SessionStep } from '@/types/session';
 import { QueueItem } from '@/components/ExecutionQueue';
 import { QueueItemCard } from '@/components/ExecutionQueue';
@@ -32,15 +32,16 @@ interface SessionControlsProps {
   sessionInitialized: boolean;
   sessionSteps: SessionStep[];
   queueItems: QueueItem[];
-  queuePaused: boolean;
   queueStarted: boolean;
+  queueStopped: boolean;
   onStart: () => void;
   onReset: () => void;
   onAddToQueue: (step: SessionStep) => void;
   onRemoveFromQueue: (id: string) => void;
   onReorderQueue: (startIndex: number, endIndex: number) => void;
   onClearQueue: () => void;
-  onTogglePause: () => void;
+  onStop: () => void;
+  onResume: () => void;
   onStartQueue: () => void;
 }
 
@@ -111,15 +112,16 @@ export function SessionControls({
   sessionInitialized,
   sessionSteps,
   queueItems,
-  queuePaused,
   queueStarted,
+  queueStopped,
   onStart,
   onReset,
   onAddToQueue,
   onRemoveFromQueue,
   onReorderQueue,
   onClearQueue,
-  onTogglePause,
+  onStop,
+  onResume,
   onStartQueue,
 }: SessionControlsProps) {
   const isConfigValid = config?.participantId && config?.psychopyConfig;
@@ -274,24 +276,26 @@ export function SessionControls({
                           <Play className="h-3 w-3 mr-1" />
                           Start Queue
                         </Button>
+                      ) : queueStopped ? (
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={onResume}
+                          className="h-7 bg-primary hover:bg-primary/90"
+                        >
+                          <Play className="h-3 w-3 mr-1" />
+                          Resume
+                        </Button>
                       ) : (
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={onTogglePause}
-                          className="h-7"
+                          onClick={onStop}
+                          className="h-7 text-destructive hover:text-destructive"
+                          disabled={runningCount === 0}
                         >
-                          {queuePaused ? (
-                            <>
-                              <Play className="h-3 w-3 mr-1" />
-                              Resume
-                            </>
-                          ) : (
-                            <>
-                              <Pause className="h-3 w-3 mr-1" />
-                              Pause
-                            </>
-                          )}
+                          <Square className="h-3 w-3 mr-1" />
+                          Stop
                         </Button>
                       )}
                       <Button
