@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ParticipantSelector } from '@/components/ParticipantSelector';
 import { PsychoPyConfigComponent } from '@/components/PsychoPyConfig';
@@ -6,7 +6,6 @@ import { SessionControls } from '@/components/SessionControls';
 import { StepHistory } from '@/components/StepHistory';
 import { BrainScanPreview } from '@/components/BrainScanPreview';
 import { WorkflowStepper, WorkflowStep } from '@/components/WorkflowStepper';
-import { SessionStatusDashboard } from '@/components/SessionStatusDashboard';
 import { InitializeStep } from '@/components/InitializeStep';
 import { PsychoPyConfig, SessionConfig, SessionStepHistory, SessionStep, Session } from '@/types/session';
 import { sessionService } from '@/services/mockSessionService';
@@ -14,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, CheckCircle2 } from 'lucide-react';
+import { QueueItem } from '@/components/ExecutionQueue';
 
 export const sessionSteps: SessionStep[] = [
   'create',
@@ -50,6 +50,8 @@ export default function RunScan() {
   const [murfiOutput, setMurfiOutput] = useState<string[]>([]);
   const [psychopyOutput, setPsychopyOutput] = useState<string[]>([]);
   const [initializeConfirmed, setInitializeConfirmed] = useState(false);
+  const [executionQueue, setExecutionQueue] = useState<QueueItem[]>([]);
+  const [queuePaused, setQueuePaused] = useState(false);
   const { toast } = useToast();
 
   // Determine workflow step based on state
@@ -158,6 +160,144 @@ export default function RunScan() {
     }
   };
 
+  // Queue management handlers
+  const handleAddToQueue = (step: SessionStep) => {
+    const newItem: QueueItem = {
+      id: `queue-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
+      step,
+      status: 'pending',
+    };
+    setExecutionQueue(prev => [...prev, newItem]);
+  };
+
+  const handleRemoveFromQueue = (id: string) => {
+    setExecutionQueue(prev => {
+      const item = prev.find(i => i.id === id);
+      // Don't allow removing running items
+      if (item?.status === 'running') return prev;
+      return prev.filter(i => i.id !== id);
+    });
+  };
+
+  const handleReorderQueue = (startIndex: number, endIndex: number) => {
+    setExecutionQueue(prev => {
+      const newQueue = [...prev];
+      const [removed] = newQueue.splice(startIndex, 1);
+      newQueue.splice(endIndex, 0, removed);
+      return newQueue;
+    });
+  };
+
+  const handleClearQueue = () => {
+    setExecutionQueue(prev => {
+      // Only clear non-running items
+      const hasRunning = prev.some(item => item.status === 'running');
+      if (hasRunning) {
+        toast({
+          title: 'Cannot clear queue',
+          description: 'Please wait for running items to complete',
+          variant: 'destructive',
+        });
+        return prev;
+      }
+      return [];
+    });
+  };
+
+  const handleTogglePause = () => {
+    setQueuePaused(prev => !prev);
+  };
+
+  // Execute a queue item
+  const executeQueueItem = useCallback(async (item: QueueItem) => {
+    // Mark as running
+    setExecutionQueue(prev =>
+      prev.map(i => (i.id === item.id ? { ...i, status: 'running' as const } : i))
+    );
+
+    setRunningSteps(prev => new Set(prev).add(item.step));
+    setIsRunning(true);
+
+    try {
+      // Start step
+      const startedStep = await sessionService.startStep(item.step);
+      setStepHistory(prev => [...prev, startedStep]);
+
+      toast({
+        title: `Starting ${item.step}`,
+        description: 'Executing step from queue...',
+      });
+
+      // Simulate step execution
+      const completedStep = await sessionService.completeStep(item.step);
+      setStepHistory(prev =>
+        prev.map((s, i) => i === prev.length - 1 ? completedStep : s)
+      );
+
+      // Mark as completed
+      setExecutionQueue(prev =>
+        prev.map(i =>
+          i.id === item.id ? { ...i, status: 'completed' as const } : i
+        )
+      );
+
+      // Increment execution count for this step
+      setStepExecutionCounts(prev => {
+        const newCounts = new Map(prev);
+        const currentCount = newCounts.get(item.step) || 0;
+        newCounts.set(item.step, currentCount + 1);
+        return newCounts;
+      });
+
+      setIsRunning(false);
+      setRunningSteps(prev => {
+        const next = new Set(prev);
+        next.delete(item.step);
+        return next;
+      });
+
+      toast({
+        title: `${item.step} completed`,
+        description: completedStep.message,
+      });
+    } catch (error) {
+      // Mark as failed
+      setExecutionQueue(prev =>
+        prev.map(i =>
+          i.id === item.id ? { ...i, status: 'failed' as const } : i
+        )
+      );
+
+      setRunningSteps(prev => {
+        const next = new Set(prev);
+        next.delete(item.step);
+        return next;
+      });
+      setIsRunning(false);
+      toast({
+        title: 'Step error',
+        description: `An error occurred during ${item.step} execution`,
+        variant: 'destructive',
+      });
+    }
+  }, [toast]);
+
+  // Auto-execution logic
+  useEffect(() => {
+    if (queuePaused || !sessionInitialized) return;
+
+    const pendingItem = executionQueue.find(item => item.status === 'pending');
+    const runningItem = executionQueue.find(item => item.status === 'running');
+
+    // If there's already a running item, don't start another
+    if (runningItem) return;
+
+    // If there's a pending item and nothing running, execute it
+    if (pendingItem && !isRunning) {
+      executeQueueItem(pendingItem);
+    }
+  }, [executionQueue, queuePaused, sessionInitialized, isRunning, executeQueueItem]);
+
   const handleStartSession = () => {
     if (!sessionConfig) return;
 
@@ -171,11 +311,13 @@ export default function RunScan() {
     setStepHistory([]);
     setStepExecutionCounts(new Map());
     setRunningSteps(new Set());
+    setExecutionQueue([]);
+    setQueuePaused(false);
     setManualWorkflowStep(null);
 
     toast({
       title: 'Session initialized',
-      description: `Session ready for participant ${sessionConfig.participantId}. Select steps to execute.`,
+      description: `Session ready for participant ${sessionConfig.participantId}. Drag steps to queue to execute.`,
     });
   };
 
@@ -301,6 +443,8 @@ export default function RunScan() {
     setSessionInitialized(false);
     setStepExecutionCounts(new Map());
     setRunningSteps(new Set());
+    setExecutionQueue([]);
+    setQueuePaused(false);
     setIsRunning(false);
     setManualWorkflowStep(null);
     setMurfiStarted(false);
@@ -433,25 +577,20 @@ export default function RunScan() {
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
             {/* Left Column - Controls and Status */}
             <div className="xl:col-span-2 space-y-6">
-              <SessionStatusDashboard
-                isInitialized={sessionInitialized}
-                isRunning={isRunning}
-                stepHistory={stepHistory}
-                totalSteps={sessionSteps.length}
-                runningSteps={runningSteps}
-              />
-
               <SessionControls
                 config={sessionConfig}
                 isRunning={isRunning}
                 sessionInitialized={sessionInitialized}
-                stepExecutionCounts={stepExecutionCounts}
-                runningSteps={runningSteps}
                 sessionSteps={sessionSteps}
-                stepHistory={stepHistory}
+                queueItems={executionQueue}
+                queuePaused={queuePaused}
                 onStart={handleStartSession}
-                onRunStep={handleRunStep}
                 onReset={handleReset}
+                onAddToQueue={handleAddToQueue}
+                onRemoveFromQueue={handleRemoveFromQueue}
+                onReorderQueue={handleReorderQueue}
+                onClearQueue={handleClearQueue}
+                onTogglePause={handleTogglePause}
               />
 
               <StepHistory history={stepHistory} />
