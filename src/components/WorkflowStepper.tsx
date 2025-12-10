@@ -1,7 +1,7 @@
 import { Check, Circle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-export type WorkflowStep = 'initialize' | 'participant' | 'execute';
+export type WorkflowStep = 'initialize' | 'participant' | 'configure' | 'execute';
 
 interface WorkflowStepperProps {
   currentStep: WorkflowStep;
@@ -11,7 +11,8 @@ interface WorkflowStepperProps {
 
 const steps: { id: WorkflowStep; label: string; description: string }[] = [
   { id: 'initialize', label: 'Initialize', description: 'Start Murfi & PsychoPy' },
-  { id: 'participant', label: 'Participant', description: 'Select participant & configure' },
+  { id: 'participant', label: 'Participant', description: 'Select participant' },
+  { id: 'configure', label: 'Configure', description: 'Configure PsychoPy settings' },
   { id: 'execute', label: 'Execute', description: 'Run session steps' },
 ];
 

@@ -56,7 +56,7 @@ export default function RunScan() {
   const getCurrentWorkflowStep = (): WorkflowStep => {
     if (sessionInitialized) return 'execute';
     if (sessionConfig?.participantId && sessionConfig?.psychopyConfig) return 'execute';
-    if (sessionConfig?.participantId) return 'participant';
+    if (sessionConfig?.participantId) return 'configure';
     if (murfiStarted && psychopyStarted && initializeConfirmed) return 'participant';
     return 'initialize';
   };
@@ -64,7 +64,8 @@ export default function RunScan() {
   const getCompletedWorkflowSteps = (): WorkflowStep[] => {
     const completed: WorkflowStep[] = [];
     if (murfiStarted && psychopyStarted && initializeConfirmed) completed.push('initialize');
-    if (sessionConfig?.participantId && sessionConfig?.psychopyConfig) completed.push('participant');
+    if (sessionConfig?.participantId) completed.push('participant');
+    if (sessionConfig?.participantId && sessionConfig?.psychopyConfig) completed.push('configure');
     if (sessionInitialized) completed.push('execute');
     return completed;
   };
@@ -87,7 +88,7 @@ export default function RunScan() {
       protocol: 'DMN-NFB',
       psychopyConfig,
     });
-    setManualWorkflowStep(null);
+    setManualWorkflowStep('configure');
   };
 
   const handlePsychoPyConfigChange = (config: PsychoPyConfig) => {
@@ -321,8 +322,8 @@ export default function RunScan() {
   };
 
   const handleWorkflowStepClick = (step: WorkflowStep) => {
-    // Allow clicking on initialize step, participant step, or any completed step
-    if (step === 'initialize' || step === 'participant' || completedSteps.includes(step)) {
+    // Allow clicking on initialize step, participant step, configure step, or any completed step
+    if (step === 'initialize' || step === 'participant' || step === 'configure' || completedSteps.includes(step)) {
       setManualWorkflowStep(step);
     }
   };
@@ -375,47 +376,57 @@ export default function RunScan() {
         )}
 
         {workflowStep === 'participant' && (
-          <div className="space-y-6">
-            <Card className="p-6 bg-card border-border">
-              <h2 className="text-xl font-semibold mb-4 text-foreground flex items-center gap-2">
-                <span className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold">
-                  2
-                </span>
-                Select Participant & Configure
-              </h2>
-              <p className="text-muted-foreground mb-6">
-                Choose an existing participant or create a new one, then configure PsychoPy settings.
-              </p>
-              <ParticipantSelector
-                onParticipantSelect={handleParticipantSelect}
-                selectedParticipantId={sessionConfig?.participantId}
-                inline={false}
-              />
-            </Card>
+          <Card className="p-6 bg-card border-border">
+            <h2 className="text-xl font-semibold mb-4 text-foreground flex items-center gap-2">
+              <span className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold">
+                2
+              </span>
+              Select Participant
+            </h2>
+            <p className="text-muted-foreground mb-6">
+              Choose an existing participant or create a new one.
+            </p>
 
-            {sessionConfig?.participantId && (
-              <Card className="p-6 bg-card border-border">
-                <h3 className="text-lg font-semibold mb-4 text-foreground">PsychoPy Configuration</h3>
-                <PsychoPyConfigComponent
-                  config={psychopyConfig}
-                  onChange={handlePsychoPyConfigChange}
-                />
-                <div className="mt-6 flex justify-end">
-                  <Button
-                    onClick={() => {
-                      handleStartSession();
-                      setManualWorkflowStep('execute');
-                    }}
-                    disabled={!sessionConfig?.psychopyConfig}
-                    className="bg-primary hover:bg-primary/90"
-                  >
-                    Start Session & Continue
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                </div>
-              </Card>
-            )}
-          </div>
+            <ParticipantSelector
+              onParticipantSelect={handleParticipantSelect}
+              selectedParticipantId={sessionConfig?.participantId}
+              inline={false}
+            />
+          </Card>
+        )}
+
+        {workflowStep === 'configure' && sessionConfig?.participantId && (
+          <Card className="p-6 bg-card border-border">
+            <h2 className="text-xl font-semibold mb-4 text-foreground flex items-center gap-2">
+              <span className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold">
+                3
+              </span>
+              Configure PsychoPy Settings
+            </h2>
+            <p className="text-muted-foreground mb-6">
+              Configure the PsychoPy settings for this session.
+            </p>
+
+            <div className="space-y-6">
+              <PsychoPyConfigComponent
+                config={psychopyConfig}
+                onChange={handlePsychoPyConfigChange}
+              />
+              <div className="flex justify-end pt-4">
+                <Button
+                  onClick={() => {
+                    handleStartSession();
+                    setManualWorkflowStep('execute');
+                  }}
+                  disabled={!sessionConfig?.psychopyConfig}
+                  className="bg-primary hover:bg-primary/90"
+                >
+                  Start Session & Continue
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </Card>
         )}
 
         {workflowStep === 'execute' && (
