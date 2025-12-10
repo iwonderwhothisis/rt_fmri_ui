@@ -12,12 +12,10 @@ import { sessionService } from '@/services/mockSessionService';
 import { useToast } from '@/hooks/use-toast';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, CheckCircle2 } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Loader2 } from 'lucide-react';
 import { QueueItem } from '@/components/ExecutionQueue';
 
 export const sessionSteps: SessionStep[] = [
-  'create',
-  'setup',
   '2vol',
   'resting_state',
   'extract_rs_networks',
@@ -53,13 +51,15 @@ export default function RunScan() {
   const [executionQueue, setExecutionQueue] = useState<QueueItem[]>([]);
   const [queuePaused, setQueuePaused] = useState(false);
   const [queueStarted, setQueueStarted] = useState(false);
+  const [setupCompleted, setSetupCompleted] = useState(false);
   const { toast } = useToast();
 
   // Determine workflow step based on state
   const getCurrentWorkflowStep = (): WorkflowStep => {
     if (sessionInitialized) return 'execute';
     if (sessionConfig?.participantId && sessionConfig?.psychopyConfig) return 'execute';
-    if (sessionConfig?.participantId) return 'configure';
+    if (sessionConfig?.participantId && setupCompleted) return 'configure';
+    if (sessionConfig?.participantId) return 'participant';
     if (murfiStarted && psychopyStarted && initializeConfirmed) return 'participant';
     return 'initialize';
   };
@@ -67,7 +67,7 @@ export default function RunScan() {
   const getCompletedWorkflowSteps = (): WorkflowStep[] => {
     const completed: WorkflowStep[] = [];
     if (murfiStarted && psychopyStarted && initializeConfirmed) completed.push('initialize');
-    if (sessionConfig?.participantId) completed.push('participant');
+    if (sessionConfig?.participantId && setupCompleted) completed.push('participant');
     if (sessionConfig?.participantId && sessionConfig?.psychopyConfig) completed.push('configure');
     if (sessionInitialized) completed.push('execute');
     return completed;
@@ -84,14 +84,78 @@ export default function RunScan() {
     }
   }, [calculatedWorkflowStep, completedSteps, manualWorkflowStep]);
 
-  const handleParticipantSelect = (participantId: string) => {
+  const handleParticipantSelect = (participantId: string, isNewParticipant: boolean = false) => {
     setSessionConfig({
       participantId,
       sessionDate: new Date().toISOString().split('T')[0],
       protocol: 'DMN-NFB',
       psychopyConfig,
     });
-    setManualWorkflowStep('configure');
+    setSetupCompleted(false);
+
+    // If creating a new participant, run the create step
+    if (isNewParticipant) {
+      handleRunStep('create');
+    }
+  };
+
+  const handleSetup = async () => {
+    if (runningSteps.has('setup')) return;
+
+    setRunningSteps(prev => new Set(prev).add('setup'));
+    setIsRunning(true);
+
+    try {
+      // Start step
+      const startedStep = await sessionService.startStep('setup');
+      setStepHistory(prev => [...prev, startedStep]);
+
+      toast({
+        title: 'Starting setup',
+        description: 'Executing setup step...',
+      });
+
+      // Simulate step execution
+      const completedStep = await sessionService.completeStep('setup');
+      setStepHistory(prev =>
+        prev.map((s, i) => i === prev.length - 1 ? completedStep : s)
+      );
+
+      // Increment execution count for this step
+      setStepExecutionCounts(prev => {
+        const newCounts = new Map(prev);
+        const currentCount = newCounts.get('setup') || 0;
+        newCounts.set('setup', currentCount + 1);
+        return newCounts;
+      });
+
+      setIsRunning(false);
+      setRunningSteps(prev => {
+        const next = new Set(prev);
+        next.delete('setup');
+        return next;
+      });
+
+      setSetupCompleted(true);
+      setManualWorkflowStep('configure');
+
+      toast({
+        title: 'Setup completed',
+        description: 'You can now proceed to configure PsychoPy settings',
+      });
+    } catch (error) {
+      setRunningSteps(prev => {
+        const next = new Set(prev);
+        next.delete('setup');
+        return next;
+      });
+      setIsRunning(false);
+      toast({
+        title: 'Setup failed',
+        description: 'Failed to complete setup step',
+        variant: 'destructive',
+      });
+    }
   };
 
   const handlePsychoPyConfigChange = (config: PsychoPyConfig) => {
@@ -324,6 +388,7 @@ export default function RunScan() {
     setExecutionQueue([]);
     setQueuePaused(false);
     setQueueStarted(false);
+    setSetupCompleted(false);
     setManualWorkflowStep(null);
 
     toast({
@@ -457,6 +522,7 @@ export default function RunScan() {
     setExecutionQueue([]);
     setQueuePaused(false);
     setQueueStarted(false);
+    setSetupCompleted(false);
     setIsRunning(false);
     setManualWorkflowStep(null);
     setMurfiStarted(false);
@@ -544,10 +610,40 @@ export default function RunScan() {
             </p>
 
             <ParticipantSelector
-              onParticipantSelect={handleParticipantSelect}
+              onParticipantSelect={(id, isNew) => handleParticipantSelect(id, isNew)}
               selectedParticipantId={sessionConfig?.participantId}
               inline={false}
             />
+
+            {sessionConfig?.participantId && !setupCompleted && (
+              <div className="mt-6 pt-6 border-t border-border">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-semibold text-foreground mb-1">Setup Required</h3>
+                    <p className="text-xs text-muted-foreground">
+                      Complete setup before proceeding to configuration
+                    </p>
+                  </div>
+                  <Button
+                    onClick={handleSetup}
+                    disabled={isRunning || runningSteps.has('setup')}
+                    className="bg-primary hover:bg-primary/90"
+                  >
+                    {runningSteps.has('setup') ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Running Setup...
+                      </>
+                    ) : (
+                      <>
+                        Run Setup
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            )}
           </Card>
         )}
 

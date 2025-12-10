@@ -30,7 +30,7 @@ import { UserPlus, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface ParticipantSelectorProps {
-  onParticipantSelect: (participantId: string) => void;
+  onParticipantSelect: (participantId: string, isNew?: boolean) => void;
   selectedParticipantId?: string;
   inline?: boolean;
 }
@@ -90,7 +90,7 @@ export function ParticipantSelector({ onParticipantSelect, selectedParticipantId
         age: 0,
       });
       setParticipants([...participants, created]);
-      onParticipantSelect(created.id);
+      onParticipantSelect(created.id, true);
       setShowNewForm(false);
       setNewParticipantId('');
       toast({
