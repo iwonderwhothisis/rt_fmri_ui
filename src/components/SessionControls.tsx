@@ -228,25 +228,17 @@ export function SessionControls({
             </Button>
           ) : null}
 
-          <Button
-            onClick={onReset}
-            disabled={isRunning}
-            variant="outline"
-            className={sessionInitialized ? "flex-1" : ""}
-            size="lg"
-          >
-            {sessionInitialized ? (
-              <>
-                <Check className="mr-2 h-4 w-4" />
-                Finish
-              </>
-            ) : (
-              <>
-                <RotateCcw className="mr-2 h-4 w-4" />
-                Reset
-              </>
-            )}
-          </Button>
+          {!sessionInitialized && (
+            <Button
+              onClick={onReset}
+              disabled={isRunning}
+              variant="outline"
+              size="lg"
+            >
+              <RotateCcw className="mr-2 h-4 w-4" />
+              Reset
+            </Button>
+          )}
         </div>
 
         {sessionInitialized && (
@@ -339,6 +331,22 @@ export function SessionControls({
                 )}
               </DroppableQueueZone>
             </div>
+
+            {/* Finish Button */}
+            {sessionInitialized && (
+              <div className="pt-4 border-t border-border">
+                <Button
+                  onClick={onReset}
+                  disabled={isRunning}
+                  variant="outline"
+                  className="w-full"
+                  size="lg"
+                >
+                  <Check className="mr-2 h-4 w-4" />
+                  Finish
+                </Button>
+              </div>
+            )}
           </div>
         )}
 

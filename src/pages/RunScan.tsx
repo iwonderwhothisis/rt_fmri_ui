@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { ParticipantSelector } from '@/components/ParticipantSelector';
 import { PsychoPyConfigComponent } from '@/components/PsychoPyConfig';
 import { SessionControls } from '@/components/SessionControls';
-import { StepHistory } from '@/components/StepHistory';
 import { BrainScanPreview } from '@/components/BrainScanPreview';
 import { WorkflowStepper, WorkflowStep } from '@/components/WorkflowStepper';
 import { InitializeStep } from '@/components/InitializeStep';
@@ -703,7 +702,6 @@ export default function RunScan() {
                 onStartQueue={handleStartQueue}
               />
 
-              <StepHistory history={stepHistory} />
             </div>
 
             {/* Right Column - Preview */}
