@@ -295,14 +295,39 @@ export default function RunScan() {
 
     setIsRunning(false);
 
-    // Add failed step to history
-    const failedStep: SessionStepHistory = {
-      step: runningItem.step,
-      status: 'failed',
-      timestamp: new Date().toISOString(),
-      message: 'Step was stopped by user',
-    };
-    setStepHistory(prev => [...prev, failedStep]);
+    // Update the started step entry to failed in history
+    setStepHistory(prev => {
+      // Find the last entry for this step (should be the 'running' entry)
+      let lastIndex = -1;
+      for (let i = prev.length - 1; i >= 0; i--) {
+        if (prev[i].step === runningItem.step) {
+          lastIndex = i;
+          break;
+        }
+      }
+
+      if (lastIndex >= 0) {
+        // Update the last entry for this step to failed
+        return prev.map((s, i) =>
+          i === lastIndex
+            ? {
+                ...s,
+                status: 'failed' as const,
+                message: 'Step was stopped by user',
+                duration: s.duration || (Date.now() - new Date(s.timestamp).getTime()) / 1000
+              }
+            : s
+        );
+      } else {
+        // If no entry exists, add a new failed entry
+        return [...prev, {
+          step: runningItem.step,
+          status: 'failed' as const,
+          timestamp: new Date().toISOString(),
+          message: 'Step was stopped by user',
+        }];
+      }
+    });
 
     toast({
       title: 'Step stopped',
@@ -349,18 +374,19 @@ export default function RunScan() {
 
       // Simulate step execution
       const completedStep = await sessionService.completeStep(item.step);
-      setStepHistory(prev =>
-        prev.map((s, i) => i === prev.length - 1 ? completedStep : s)
-      );
 
-      // Check if item was stopped (marked as failed) before marking as completed
+      // Check if item was stopped (marked as failed) before updating history or queue
       setExecutionQueue(prev => {
         const currentItem = prev.find(i => i.id === item.id);
-        // If item was stopped (status is 'failed'), don't overwrite it
+        // If item was stopped (status is 'failed'), don't update history or queue
         if (currentItem?.status === 'failed') {
           return prev; // Return unchanged - item was stopped
         }
-        // Otherwise, mark as completed
+        // Otherwise, update history and mark as completed
+        setStepHistory(prevHistory =>
+          prevHistory.map((s, i) => i === prevHistory.length - 1 ? completedStep : s)
+        );
+        // Mark as completed
         return prev.map(i =>
           i.id === item.id ? { ...i, status: 'completed' as const } : i
         );
