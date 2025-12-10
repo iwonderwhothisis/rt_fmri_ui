@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ParticipantSelector } from '@/components/ParticipantSelector';
 import { PsychoPyConfigComponent } from '@/components/PsychoPyConfig';
@@ -51,6 +51,7 @@ export default function RunScan() {
   const [queueStarted, setQueueStarted] = useState(false);
   const [queueStopped, setQueueStopped] = useState(false);
   const [setupCompleted, setSetupCompleted] = useState(false);
+  const stoppedItemsRef = useRef<Set<string>>(new Set());
   const { toast } = useToast();
 
   // Determine workflow step based on state
@@ -276,6 +277,9 @@ export default function RunScan() {
     const runningItem = executionQueue.find(item => item.status === 'running');
     if (!runningItem) return;
 
+    // Mark this item as stopped in the ref
+    stoppedItemsRef.current.add(runningItem.id);
+
     // Mark the running item as failed
     setExecutionQueue(prev =>
       prev.map(item =>
@@ -375,11 +379,21 @@ export default function RunScan() {
       // Simulate step execution
       const completedStep = await sessionService.completeStep(item.step);
 
-      // Check if item was stopped (marked as failed) before updating history or queue
+      // Check if this item was stopped using the ref (most reliable check)
+      if (stoppedItemsRef.current.has(item.id)) {
+        // Item was stopped - don't update anything, just return
+        // Clean up the ref entry
+        stoppedItemsRef.current.delete(item.id);
+        return;
+      }
+
+      // Also check if item was stopped (marked as failed) in the queue state
       setExecutionQueue(prev => {
         const currentItem = prev.find(i => i.id === item.id);
         // If item was stopped (status is 'failed'), don't update history or queue
         if (currentItem?.status === 'failed') {
+          // Clean up the ref entry if it exists
+          stoppedItemsRef.current.delete(item.id);
           return prev; // Return unchanged - item was stopped
         }
         // Otherwise, update history and mark as completed
@@ -392,6 +406,7 @@ export default function RunScan() {
         );
       });
 
+      // Item completed successfully - do cleanup and show success
       // Increment execution count for this step
       setStepExecutionCounts(prev => {
         const newCounts = new Map(prev);
@@ -449,11 +464,27 @@ export default function RunScan() {
     }
   }, [executionQueue, queueStarted, queueStopped, sessionInitialized, isRunning, executeQueueItem]);
 
-  const handleStartSession = () => {
+  const handleStartSession = async () => {
     if (!sessionConfig) return;
 
-    // Generate session ID
-    const newSessionId = `S${Date.now().toString().slice(-6)}`;
+    // Generate session ID by counting up from existing sessions
+    const existingSessions = await sessionService.getPreviousSessions();
+    let maxId = 0;
+
+    // Find the highest session ID number
+    for (const session of existingSessions) {
+      const match = session.id.match(/^S(\d+)$/);
+      if (match) {
+        const idNum = parseInt(match[1], 10);
+        if (idNum > maxId) {
+          maxId = idNum;
+        }
+      }
+    }
+
+    // Generate next session ID (increment from max)
+    const nextId = maxId + 1;
+    const newSessionId = `S${nextId.toString().padStart(3, '0')}`;
     setSessionId(newSessionId);
     setSessionStartTime(new Date().toISOString());
 
@@ -465,6 +496,7 @@ export default function RunScan() {
     setExecutionQueue([]);
     setQueueStarted(false);
     setQueueStopped(false);
+    stoppedItemsRef.current.clear();
     setSetupCompleted(false);
     setManualWorkflowStep(null);
 
@@ -599,6 +631,7 @@ export default function RunScan() {
     setExecutionQueue([]);
     setQueueStarted(false);
     setQueueStopped(false);
+    stoppedItemsRef.current.clear();
     setSetupCompleted(false);
     setIsRunning(false);
     setManualWorkflowStep(null);
