@@ -15,6 +15,8 @@ interface InitializeStepProps {
   psychopyOutput?: string[];
   onMurfiCommand?: (command: string) => void;
   onPsychoPyCommand?: (command: string) => void;
+  murfiConnectionState?: 'disconnected' | 'connecting' | 'connected' | 'error';
+  psychopyConnectionState?: 'disconnected' | 'connecting' | 'connected' | 'error';
   onConfirmProceed?: () => void;
   canProceed?: boolean;
 }
@@ -30,6 +32,8 @@ export function InitializeStep({
   psychopyOutput = [],
   onMurfiCommand,
   onPsychoPyCommand,
+  murfiConnectionState,
+  psychopyConnectionState,
   onConfirmProceed,
   canProceed = false,
 }: InitializeStepProps) {
@@ -99,6 +103,7 @@ export function InitializeStep({
                 output={murfiOutput}
                 onCommand={onMurfiCommand || (() => {})}
                 isActive={murfiStarted}
+                connectionState={murfiConnectionState}
               />
             </div>
           )}
@@ -157,6 +162,7 @@ export function InitializeStep({
                 output={psychopyOutput}
                 onCommand={onPsychoPyCommand || (() => {})}
                 isActive={psychopyStarted}
+                connectionState={psychopyConnectionState}
               />
             </div>
           )}

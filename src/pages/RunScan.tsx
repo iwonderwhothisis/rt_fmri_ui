@@ -9,6 +9,7 @@ import { InitializeStep } from '@/components/InitializeStep';
 import { InteractiveTerminal } from '@/components/InteractiveTerminal';
 import { PsychoPyConfig, SessionConfig, SessionStepHistory, SessionStep, Session } from '@/types/session';
 import { sessionService } from '@/services/mockSessionService';
+import { TerminalService } from '@/services/terminalService';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -51,11 +52,17 @@ export default function RunScan() {
   // Terminal command history (managed internally by InteractiveTerminal, but we keep for persistence)
   const [murfiCommandHistory, setMurfiCommandHistory] = useState<string[]>([]);
   const [psychopyCommandHistory, setPsychopyCommandHistory] = useState<string[]>([]);
+  const [murfiConnectionState, setMurfiConnectionState] = useState<'disconnected' | 'connecting' | 'connected' | 'error'>('disconnected');
+  const [psychopyConnectionState, setPsychopyConnectionState] = useState<'disconnected' | 'connecting' | 'connected' | 'error'>('disconnected');
   const [executionQueue, setExecutionQueue] = useState<QueueItem[]>([]);
   const [queueStarted, setQueueStarted] = useState(false);
   const [queueStopped, setQueueStopped] = useState(false);
   const [setupCompleted, setSetupCompleted] = useState(false);
   const stoppedItemsRef = useRef<Set<string>>(new Set());
+
+  // Terminal service instances
+  const murfiTerminalServiceRef = useRef<TerminalService | null>(null);
+  const psychopyTerminalServiceRef = useRef<TerminalService | null>(null);
 
   // Determine workflow step based on state
   const getCurrentWorkflowStep = (): WorkflowStep => {
@@ -89,6 +96,47 @@ export default function RunScan() {
       setManualWorkflowStep(null);
     }
   }, [calculatedWorkflowStep, completedSteps, manualWorkflowStep]);
+
+  // Initialize terminal services
+  useEffect(() => {
+    if (!murfiTerminalServiceRef.current) {
+      murfiTerminalServiceRef.current = new TerminalService('murfi');
+      murfiTerminalServiceRef.current.onOutput((data) => {
+        setMurfiOutput(prev => {
+          // Split by newlines and add each line
+          const lines = data.split('\n').filter(line => line.length > 0);
+          return [...prev, ...lines];
+        });
+      });
+      murfiTerminalServiceRef.current.onStateChange((state) => {
+        setMurfiConnectionState(state);
+      });
+    }
+
+    if (!psychopyTerminalServiceRef.current) {
+      psychopyTerminalServiceRef.current = new TerminalService('psychopy');
+      psychopyTerminalServiceRef.current.onOutput((data) => {
+        setPsychopyOutput(prev => {
+          // Split by newlines and add each line
+          const lines = data.split('\n').filter(line => line.length > 0);
+          return [...prev, ...lines];
+        });
+      });
+      psychopyTerminalServiceRef.current.onStateChange((state) => {
+        setPsychopyConnectionState(state);
+      });
+    }
+
+    // Cleanup on unmount
+    return () => {
+      if (murfiTerminalServiceRef.current) {
+        murfiTerminalServiceRef.current.disconnect();
+      }
+      if (psychopyTerminalServiceRef.current) {
+        psychopyTerminalServiceRef.current.disconnect();
+      }
+    };
+  }, []);
 
   const handleParticipantSelect = (participantId: string, isNewParticipant: boolean = false) => {
     setSessionConfig({
@@ -446,76 +494,36 @@ export default function RunScan() {
     setIsStartingMurfi(true);
     setMurfiOutput([]);
 
-    // Simulate running terminal commands for Murfi
-    const commands = [
-      'cd /path/to/murfi',
-      'source activate murfi_env',
-      'python murfi_server.py --port 8080',
-    ];
-
-    // Simulate command execution with output
-    for (let i = 0; i < commands.length; i++) {
-      const command = commands[i];
-      setMurfiOutput(prev => [...prev, `$ ${command}`]);
-
-      // Simulate command output
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      if (i === commands.length - 1) {
-        setMurfiOutput(prev => [
-          ...prev,
-          'Murfi server starting...',
-          'Listening on port 8080',
-          'Real-time processing ready',
-          '✓ Murfi started successfully'
-        ]);
-      } else {
-        setMurfiOutput(prev => [...prev, '✓ Command executed']);
+    try {
+      // Connect to terminal service
+      if (murfiTerminalServiceRef.current) {
+        await murfiTerminalServiceRef.current.connect();
+        setMurfiStarted(true);
       }
-    }
-
-    setTimeout(() => {
-      setMurfiStarted(true);
+    } catch (error) {
+      console.error('Failed to connect to Murfi terminal:', error);
+      setMurfiOutput(prev => [...prev, '✗ Failed to connect to terminal service']);
+    } finally {
       setIsStartingMurfi(false);
-    }, 500);
+    }
   };
 
   const handleStartPsychoPy = async () => {
     setIsStartingPsychoPy(true);
     setPsychopyOutput([]);
 
-    // Simulate running terminal commands for PsychoPy
-    const commands = [
-      'cd /path/to/psychopy',
-      'source activate psychopy_env',
-      'python psychopy_runner.py --display 0',
-    ];
-
-    // Simulate command execution with output
-    for (let i = 0; i < commands.length; i++) {
-      const command = commands[i];
-      setPsychopyOutput(prev => [...prev, `$ ${command}`]);
-
-      // Simulate command output
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      if (i === commands.length - 1) {
-        setPsychopyOutput(prev => [
-          ...prev,
-          'PsychoPy Builder starting...',
-          'Display initialized on screen 0',
-          'Task presentation ready',
-          '✓ PsychoPy started successfully'
-        ]);
-      } else {
-        setPsychopyOutput(prev => [...prev, '✓ Command executed']);
+    try {
+      // Connect to terminal service
+      if (psychopyTerminalServiceRef.current) {
+        await psychopyTerminalServiceRef.current.connect();
+        setPsychopyStarted(true);
       }
-    }
-
-    setTimeout(() => {
-      setPsychopyStarted(true);
+    } catch (error) {
+      console.error('Failed to connect to PsychoPy terminal:', error);
+      setPsychopyOutput(prev => [...prev, '✗ Failed to connect to terminal service']);
+    } finally {
       setIsStartingPsychoPy(false);
-    }, 500);
+    }
   };
 
   const handleReset = async () => {
@@ -582,122 +590,54 @@ export default function RunScan() {
 
   // Command execution handlers for terminals
   const handleMurfiCommand = async (command: string) => {
-    setMurfiOutput(prev => [...prev, `$ ${command}`]);
-
-    // Simulate command execution with delay
-    await new Promise(resolve => setTimeout(resolve, 300));
-
-    // Parse and simulate command responses
-    const cmd = command.trim().toLowerCase();
-    const parts = cmd.split(/\s+/);
-    const baseCmd = parts[0];
-
-    if (baseCmd === 'cd') {
-      const path = parts[1] || '~';
-      setMurfiOutput(prev => [...prev, `Changed directory to ${path}`]);
-    } else if (baseCmd === 'ls' || baseCmd === 'dir') {
-      setMurfiOutput(prev => [
-        ...prev,
-        'murfi_server.py',
-        'config.yaml',
-        'data/',
-        'logs/',
-        '✓ Command executed'
-      ]);
-    } else if (baseCmd === 'ps' || baseCmd === 'status') {
-      if (murfiStarted) {
-        setMurfiOutput(prev => [
-          ...prev,
-          'PID   CMD',
-          '1234  python murfi_server.py --port 8080',
-          '✓ Murfi server is running'
-        ]);
-      } else {
-        setMurfiOutput(prev => [...prev, '✗ Murfi server is not running']);
-      }
-    } else if (baseCmd === 'pwd') {
-      setMurfiOutput(prev => [...prev, '/path/to/murfi']);
-    } else if (baseCmd === 'help') {
-      setMurfiOutput(prev => [
-        ...prev,
-        'Available commands:',
-        '  cd <path>     - Change directory',
-        '  ls, dir       - List files',
-        '  ps, status    - Check server status',
-        '  pwd           - Print working directory',
-        '  help          - Show this help',
-        '  clear         - Clear terminal output'
-      ]);
-    } else if (baseCmd === 'clear') {
+    // Handle clear command locally
+    if (command.trim().toLowerCase() === 'clear') {
       setMurfiOutput([]);
-    } else if (baseCmd === '') {
-      // Empty command, do nothing
-    } else {
-      setMurfiOutput(prev => [
-        ...prev,
-        `✗ Command not found: ${baseCmd}`,
-        'Type "help" for available commands'
-      ]);
+      return;
+    }
+
+    // Send command to terminal service
+    if (murfiTerminalServiceRef.current) {
+      const state = murfiTerminalServiceRef.current.getConnectionState();
+      if (state === 'connected') {
+        murfiTerminalServiceRef.current.sendCommand(command);
+      } else if (state === 'disconnected') {
+        // Try to connect first
+        try {
+          await murfiTerminalServiceRef.current.connect();
+          murfiTerminalServiceRef.current.sendCommand(command);
+        } catch (error) {
+          setMurfiOutput(prev => [...prev, '✗ Not connected to terminal service. Please start Murfi first.']);
+        }
+      } else {
+        setMurfiOutput(prev => [...prev, '✗ Terminal is connecting, please wait...']);
+      }
     }
   };
 
   const handlePsychoPyCommand = async (command: string) => {
-    setPsychopyOutput(prev => [...prev, `$ ${command}`]);
-
-    // Simulate command execution with delay
-    await new Promise(resolve => setTimeout(resolve, 300));
-
-    // Parse and simulate command responses
-    const cmd = command.trim().toLowerCase();
-    const parts = cmd.split(/\s+/);
-    const baseCmd = parts[0];
-
-    if (baseCmd === 'cd') {
-      const path = parts[1] || '~';
-      setPsychopyOutput(prev => [...prev, `Changed directory to ${path}`]);
-    } else if (baseCmd === 'ls' || baseCmd === 'dir') {
-      setPsychopyOutput(prev => [
-        ...prev,
-        'psychopy_runner.py',
-        'experiment.psyexp',
-        'data/',
-        'stimuli/',
-        '✓ Command executed'
-      ]);
-    } else if (baseCmd === 'ps' || baseCmd === 'status') {
-      if (psychopyStarted) {
-        setPsychopyOutput(prev => [
-          ...prev,
-          'PID   CMD',
-          '5678  python psychopy_runner.py --display 0',
-          '✓ PsychoPy is running'
-        ]);
-      } else {
-        setPsychopyOutput(prev => [...prev, '✗ PsychoPy is not running']);
-      }
-    } else if (baseCmd === 'pwd') {
-      setPsychopyOutput(prev => [...prev, '/path/to/psychopy']);
-    } else if (baseCmd === 'help') {
-      setPsychopyOutput(prev => [
-        ...prev,
-        'Available commands:',
-        '  cd <path>     - Change directory',
-        '  ls, dir       - List files',
-        '  ps, status    - Check status',
-        '  pwd           - Print working directory',
-        '  help          - Show this help',
-        '  clear         - Clear terminal output'
-      ]);
-    } else if (baseCmd === 'clear') {
+    // Handle clear command locally
+    if (command.trim().toLowerCase() === 'clear') {
       setPsychopyOutput([]);
-    } else if (baseCmd === '') {
-      // Empty command, do nothing
-    } else {
-      setPsychopyOutput(prev => [
-        ...prev,
-        `✗ Command not found: ${baseCmd}`,
-        'Type "help" for available commands'
-      ]);
+      return;
+    }
+
+    // Send command to terminal service
+    if (psychopyTerminalServiceRef.current) {
+      const state = psychopyTerminalServiceRef.current.getConnectionState();
+      if (state === 'connected') {
+        psychopyTerminalServiceRef.current.sendCommand(command);
+      } else if (state === 'disconnected') {
+        // Try to connect first
+        try {
+          await psychopyTerminalServiceRef.current.connect();
+          psychopyTerminalServiceRef.current.sendCommand(command);
+        } catch (error) {
+          setPsychopyOutput(prev => [...prev, '✗ Not connected to terminal service. Please start PsychoPy first.']);
+        }
+      } else {
+        setPsychopyOutput(prev => [...prev, '✗ Terminal is connecting, please wait...']);
+      }
     }
   };
 
@@ -736,6 +676,8 @@ export default function RunScan() {
             psychopyOutput={psychopyOutput}
             onMurfiCommand={handleMurfiCommand}
             onPsychoPyCommand={handlePsychoPyCommand}
+            murfiConnectionState={murfiConnectionState}
+            psychopyConnectionState={psychopyConnectionState}
             onConfirmProceed={handleConfirmInitialize}
             canProceed={murfiStarted && psychopyStarted}
           />
@@ -803,12 +745,14 @@ export default function RunScan() {
                         output={murfiOutput}
                         onCommand={handleMurfiCommand}
                         isActive={murfiStarted}
+                        connectionState={murfiConnectionState}
                       />
                       <InteractiveTerminal
                         name="PsychoPy"
                         output={psychopyOutput}
                         onCommand={handlePsychoPyCommand}
                         isActive={psychopyStarted}
+                        connectionState={psychopyConnectionState}
                       />
                     </div>
                   </AccordionContent>

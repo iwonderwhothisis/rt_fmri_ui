@@ -6,6 +6,7 @@ interface InteractiveTerminalProps {
   output: string[];
   onCommand: (command: string) => void;
   isActive?: boolean;
+  connectionState?: 'disconnected' | 'connecting' | 'connected' | 'error';
   className?: string;
 }
 
@@ -14,6 +15,7 @@ export function InteractiveTerminal({
   output,
   onCommand,
   isActive = true,
+  connectionState,
   className,
 }: InteractiveTerminalProps) {
   const [command, setCommand] = useState('');
@@ -75,10 +77,29 @@ export function InteractiveTerminal({
     }
   };
 
+  const getConnectionStatusBadge = () => {
+    if (!connectionState) return null;
+
+    const statusConfig = {
+      disconnected: { text: 'Disconnected', color: 'text-muted-foreground' },
+      connecting: { text: 'Connecting...', color: 'text-yellow-400' },
+      connected: { text: 'Connected', color: 'text-green-400' },
+      error: { text: 'Error', color: 'text-red-400' },
+    };
+
+    const config = statusConfig[connectionState];
+    return (
+      <span className={cn('text-xs ml-2', config.color)}>
+        ({config.text})
+      </span>
+    );
+  };
+
   return (
     <div className={cn('flex flex-col', className)}>
-      <div className="text-xs font-semibold text-muted-foreground mb-2">
+      <div className="text-xs font-semibold text-muted-foreground mb-2 flex items-center">
         {name} Terminal:
+        {getConnectionStatusBadge()}
       </div>
       <div
         ref={outputRef}
