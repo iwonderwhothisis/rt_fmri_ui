@@ -68,14 +68,16 @@ function DraggableStepCard({ step }: { step: SessionStep }) {
     <Card
       ref={setNodeRef}
       style={style}
-      {...listeners}
-      {...attributes}
       className={cn(
-        'p-3 cursor-grab active:cursor-grabbing border-border hover:border-primary/50 transition-all',
+        'p-3 cursor-grab active:cursor-grabbing border-border hover:border-primary/50 transition-all shrink-0',
         isDragging && 'opacity-50'
       )}
     >
-      <div className="flex items-center gap-2">
+      <div
+        {...listeners}
+        {...attributes}
+        className="flex items-center gap-2"
+      >
         <GripVertical className="h-4 w-4 text-muted-foreground" />
         <span className="text-sm font-medium text-foreground flex-1">
           {formatStepName(step)}
@@ -252,7 +254,7 @@ export function SessionControls({
             {/* Available Steps Section */}
             <div>
               <h4 className="text-sm font-semibold text-foreground mb-3">Available Steps</h4>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="flex flex-wrap gap-2">
                 {sessionSteps.map((step) => (
                   <DraggableStepCard key={step} step={step} />
                 ))}

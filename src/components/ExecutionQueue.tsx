@@ -87,37 +87,38 @@ export function QueueItemCard({ item, index, onRemove }: QueueItemCardProps) {
       ref={setNodeRef}
       style={style}
       className={cn(
-        'p-2 flex items-center gap-2 border transition-all shrink-0',
+        'p-3 cursor-grab active:cursor-grabbing border-border hover:border-primary/50 transition-all shrink-0',
         statusConfig.bgColor,
         statusConfig.borderColor,
-        isDragging && 'shadow-lg'
+        isDragging && 'opacity-50',
+        item.status === 'running' && 'border-primary/50'
       )}
     >
       <div
         {...attributes}
         {...listeners}
-        className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
+        className="flex items-center gap-2"
       >
-        <GripVertical className="h-3.5 w-3.5" />
-      </div>
-      <div className="flex items-center gap-1.5 min-w-0">
-        <span className="text-xs font-mono text-muted-foreground flex-shrink-0">#{index + 1}</span>
-        <span className="text-xs font-medium text-foreground truncate">{formatStepName(item.step)}</span>
-      </div>
-      <div className="flex items-center gap-1 flex-shrink-0">
+        <GripVertical className="h-4 w-4 text-muted-foreground" />
+        <span className="text-sm font-medium text-foreground flex-1">
+          {formatStepName(item.step)}
+        </span>
         <StatusIcon
-          className={cn('h-3 w-3', statusConfig.color, item.status === 'running' && 'animate-spin')}
+          className={cn('h-3.5 w-3.5 flex-shrink-0', statusConfig.color, item.status === 'running' && 'animate-spin')}
         />
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6 text-muted-foreground hover:text-destructive flex-shrink-0 -mr-1"
+          onClick={(e) => {
+            e.stopPropagation();
+            onRemove(item.id);
+          }}
+          disabled={item.status === 'running'}
+        >
+          <X className="h-3.5 w-3.5" />
+        </Button>
       </div>
-      <Button
-        variant="ghost"
-        size="icon"
-        className="h-5 w-5 text-muted-foreground hover:text-destructive flex-shrink-0"
-        onClick={() => onRemove(item.id)}
-        disabled={item.status === 'running'}
-      >
-        <X className="h-3 w-3" />
-      </Button>
     </Card>
   );
 }
