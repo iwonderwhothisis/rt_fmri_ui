@@ -6,12 +6,15 @@ import { SessionControls } from '@/components/SessionControls';
 import { BrainScanPreview } from '@/components/BrainScanPreview';
 import { WorkflowStepper, WorkflowStep } from '@/components/WorkflowStepper';
 import { InitializeStep } from '@/components/InitializeStep';
+import { CompactTerminalPanel } from '@/components/CompactTerminalPanel';
 import { PsychoPyConfig, SessionConfig, SessionStepHistory, SessionStep, Session } from '@/types/session';
 import { sessionService } from '@/services/mockSessionService';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, CheckCircle2, Loader2 } from 'lucide-react';
+import { ArrowRight, CheckCircle2, ChevronDown, Loader2, Terminal } from 'lucide-react';
 import { QueueItem } from '@/components/ExecutionQueue';
+import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible';
+import { Badge } from '@/components/ui/badge';
 
 export const sessionSteps: SessionStep[] = [
   '2vol',
@@ -51,6 +54,7 @@ export default function RunScan() {
   const [queueStopped, setQueueStopped] = useState(false);
   const [setupCompleted, setSetupCompleted] = useState(false);
   const stoppedItemsRef = useRef<Set<string>>(new Set());
+  const [terminalOpen, setTerminalOpen] = useState(true);
 
   // Determine workflow step based on state
   const getCurrentWorkflowStep = (): WorkflowStep => {
@@ -728,6 +732,54 @@ export default function RunScan() {
             </div>
           </div>
         )}
+
+        {/* Collapsible terminals card pinned to bottom */}
+        <Collapsible open={terminalOpen} onOpenChange={setTerminalOpen}>
+          <Card className="p-4 md:p-5 bg-card border-border">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+                  <Terminal className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-foreground">System terminals</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="text-[11px] font-medium">
+                  Murfi · {murfiStarted ? 'Running' : isStartingMurfi ? 'Starting...' : 'Idle'}
+                </Badge>
+                <Badge variant="outline" className="text-[11px] font-medium">
+                  PsychoPy · {psychopyStarted ? 'Running' : isStartingPsychoPy ? 'Starting...' : 'Idle'}
+                </Badge>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setTerminalOpen(prev => !prev)}
+                  className="gap-1 text-muted-foreground"
+                >
+                  {terminalOpen ? 'Hide' : 'Show'}
+                  <ChevronDown
+                    className={`h-4 w-4 transition-transform ${terminalOpen ? 'rotate-180' : ''}`}
+                  />
+                </Button>
+              </div>
+            </div>
+
+            <CollapsibleContent className="mt-4">
+              <CompactTerminalPanel
+                className="shadow-none border border-border/60 bg-card"
+                title="Live output"
+                murfiOutput={murfiOutput}
+                psychopyOutput={psychopyOutput}
+                murfiStarted={murfiStarted}
+                psychopyStarted={psychopyStarted}
+                isStartingMurfi={isStartingMurfi}
+                isStartingPsychoPy={isStartingPsychoPy}
+              />
+            </CollapsibleContent>
+          </Card>
+        </Collapsible>
       </div>
     </div>
   );
