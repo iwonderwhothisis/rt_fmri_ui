@@ -26,10 +26,16 @@ export interface SessionStepHistory {
   message?: string;
 }
 
+// Valid participant anchor options
+export type ParticipantAnchor = 'toe' | 'finger' | 'hand' | 'nose';
+
+// Valid feedback condition options
+export type FeedbackCondition = '5min' | '10min' | '15min' | '20min' | '30min';
+
 export interface PsychoPyConfig {
   displayFeedback: 'No Feedback' | 'Feedback';
-  participantAnchor: string;
-  feedbackCondition: string;
+  participantAnchor: ParticipantAnchor;
+  feedbackCondition: FeedbackCondition;
 }
 
 export interface SessionConfig {

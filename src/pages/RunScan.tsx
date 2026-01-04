@@ -57,12 +57,26 @@ export default function RunScan() {
   const [terminalOpen, setTerminalOpen] = useState(true);
 
   // Determine workflow step based on state
+  // Priority order: execute > configure > participant > initialize
   const getCurrentWorkflowStep = (): WorkflowStep => {
+    // Session is initialized and ready for execution
     if (sessionInitialized) return 'execute';
-    if (sessionConfig?.participantId && sessionConfig?.psychopyConfig) return 'execute';
+
+    // All configuration is complete, ready to start session
+    if (sessionConfig?.participantId && sessionConfig?.psychopyConfig && setupCompleted) {
+      return 'configure'; // Show configure step until session is started
+    }
+
+    // Participant selected and setup completed, move to configure
     if (sessionConfig?.participantId && setupCompleted) return 'configure';
+
+    // Participant selected but setup not completed
     if (sessionConfig?.participantId) return 'participant';
+
+    // Systems initialized, move to participant selection
     if (murfiStarted && psychopyStarted && initializeConfirmed) return 'participant';
+
+    // Default: initialize systems
     return 'initialize';
   };
 
@@ -107,18 +121,28 @@ export default function RunScan() {
   const handleSetup = async () => {
     if (runningSteps.has('setup')) return;
 
+    // Generate a unique history entry ID for tracking this specific execution
+    const historyEntryId = `setup-${Date.now()}`;
+
     setRunningSteps(prev => new Set(prev).add('setup'));
     setIsRunning(true);
 
     try {
       // Start step
       const startedStep = await sessionService.startStep('setup');
-      setStepHistory(prev => [...prev, startedStep]);
+      const startedStepWithId = { ...startedStep, _entryId: historyEntryId };
+      setStepHistory(prev => [...prev, startedStepWithId]);
 
       // Simulate step execution
       const completedStep = await sessionService.completeStep('setup');
+
+      // Update history - find by the unique entry ID instead of last index
       setStepHistory(prev =>
-        prev.map((s, i) => i === prev.length - 1 ? completedStep : s)
+        prev.map(s =>
+          (s as SessionStepHistory & { _entryId?: string })._entryId === historyEntryId
+            ? { ...completedStep, _entryId: historyEntryId }
+            : s
+        )
       );
 
       // Increment execution count for this step
@@ -137,7 +161,7 @@ export default function RunScan() {
       });
 
       setSetupCompleted(true);
-    setManualWorkflowStep('configure');
+      setManualWorkflowStep('configure');
     } catch (error) {
       setRunningSteps(prev => {
         const next = new Set(prev);
@@ -161,18 +185,28 @@ export default function RunScan() {
   const handleRunStep = async (step: SessionStep) => {
     if (runningSteps.has(step)) return;
 
+    // Generate a unique history entry ID for tracking this specific execution
+    const historyEntryId = `${step}-${Date.now()}`;
+
     setRunningSteps(prev => new Set(prev).add(step));
     setIsRunning(true);
 
     try {
       // Start step
       const startedStep = await sessionService.startStep(step);
-      setStepHistory(prev => [...prev, startedStep]);
+      const startedStepWithId = { ...startedStep, _entryId: historyEntryId };
+      setStepHistory(prev => [...prev, startedStepWithId]);
 
       // Simulate step execution
       const completedStep = await sessionService.completeStep(step);
+
+      // Update history - find by the unique entry ID instead of last index
       setStepHistory(prev =>
-        prev.map((s, i) => i === prev.length - 1 ? completedStep : s)
+        prev.map(s =>
+          (s as SessionStepHistory & { _entryId?: string })._entryId === historyEntryId
+            ? { ...completedStep, _entryId: historyEntryId }
+            : s
+        )
       );
 
       // Increment execution count for this step
@@ -312,6 +346,9 @@ export default function RunScan() {
 
   // Execute a queue item
   const executeQueueItem = useCallback(async (item: QueueItem) => {
+    // Generate a unique history entry ID for tracking this specific execution
+    const historyEntryId = `${item.id}-${Date.now()}`;
+
     // Mark as running
     setExecutionQueue(prev =>
       prev.map(i => (i.id === item.id ? { ...i, status: 'running' as const } : i))
@@ -323,7 +360,9 @@ export default function RunScan() {
     try {
       // Start step
       const startedStep = await sessionService.startStep(item.step);
-      setStepHistory(prev => [...prev, startedStep]);
+      // Add historyEntryId to track this specific execution
+      const startedStepWithId = { ...startedStep, _entryId: historyEntryId };
+      setStepHistory(prev => [...prev, startedStepWithId]);
 
       // Simulate step execution
       const completedStep = await sessionService.completeStep(item.step);
@@ -336,26 +375,34 @@ export default function RunScan() {
         return;
       }
 
-      // Also check if item was stopped (marked as failed) in the queue state
+      // Check current queue state to see if item was stopped
+      let wasStopped = false;
       setExecutionQueue(prev => {
         const currentItem = prev.find(i => i.id === item.id);
-        // If item was stopped (status is 'failed'), don't update history or queue
         if (currentItem?.status === 'failed') {
-          // Clean up the ref entry if it exists
+          wasStopped = true;
           stoppedItemsRef.current.delete(item.id);
-          return prev; // Return unchanged - item was stopped
+          return prev;
         }
-        // Otherwise, update history and mark as completed
-        setStepHistory(prevHistory =>
-          prevHistory.map((s, i) => i === prevHistory.length - 1 ? completedStep : s)
-        );
-        // Mark as completed
         return prev.map(i =>
           i.id === item.id ? { ...i, status: 'completed' as const } : i
         );
       });
 
-      // Item completed successfully - do cleanup and show success
+      // If stopped, don't update history or counts
+      if (wasStopped) {
+        return;
+      }
+
+      // Update history - find by the unique entry ID instead of last index
+      setStepHistory(prev =>
+        prev.map(s =>
+          (s as SessionStepHistory & { _entryId?: string })._entryId === historyEntryId
+            ? { ...completedStep, _entryId: historyEntryId }
+            : s
+        )
+      );
+
       // Increment execution count for this step
       setStepExecutionCounts(prev => {
         const newCounts = new Map(prev);
@@ -407,13 +454,15 @@ export default function RunScan() {
   const handleStartSession = async () => {
     if (!sessionConfig) return;
 
-    // Generate session ID by counting up from existing sessions
+    // Generate session ID with timestamp to ensure uniqueness
+    // Format: S{sequential}-{timestamp} to be both human-readable and unique
     const existingSessions = await sessionService.getPreviousSessions();
     let maxId = 0;
 
     // Find the highest session ID number
     for (const session of existingSessions) {
-      const match = session.id.match(/^S(\d+)$/);
+      // Match both old format S001 and new format S001-xxxxx
+      const match = session.id.match(/^S(\d+)/);
       if (match) {
         const idNum = parseInt(match[1], 10);
         if (idNum > maxId) {
@@ -422,9 +471,10 @@ export default function RunScan() {
       }
     }
 
-    // Generate next session ID (increment from max)
+    // Generate next session ID with timestamp suffix for uniqueness
     const nextId = maxId + 1;
-    const newSessionId = `S${nextId.toString().padStart(3, '0')}`;
+    const timestamp = Date.now().toString(36); // Base36 for shorter string
+    const newSessionId = `S${nextId.toString().padStart(3, '0')}-${timestamp}`;
     setSessionId(newSessionId);
     setSessionStartTime(new Date().toISOString());
 
@@ -441,6 +491,27 @@ export default function RunScan() {
     setManualWorkflowStep(null);
   };
 
+  // Maximum number of terminal output lines to keep (prevents memory issues)
+  const MAX_TERMINAL_LINES = 100;
+
+  const appendMurfiOutput = (lines: string | string[]) => {
+    setMurfiOutput(prev => {
+      const newLines = Array.isArray(lines) ? lines : [lines];
+      const combined = [...prev, ...newLines];
+      // Keep only the last MAX_TERMINAL_LINES
+      return combined.slice(-MAX_TERMINAL_LINES);
+    });
+  };
+
+  const appendPsychopyOutput = (lines: string | string[]) => {
+    setPsychopyOutput(prev => {
+      const newLines = Array.isArray(lines) ? lines : [lines];
+      const combined = [...prev, ...newLines];
+      // Keep only the last MAX_TERMINAL_LINES
+      return combined.slice(-MAX_TERMINAL_LINES);
+    });
+  };
+
   const handleStartMurfi = async () => {
     setIsStartingMurfi(true);
     setMurfiOutput([]);
@@ -455,21 +526,20 @@ export default function RunScan() {
     // Simulate command execution with output
     for (let i = 0; i < commands.length; i++) {
       const command = commands[i];
-      setMurfiOutput(prev => [...prev, `$ ${command}`]);
+      appendMurfiOutput(`$ ${command}`);
 
       // Simulate command output
       await new Promise(resolve => setTimeout(resolve, 500));
 
       if (i === commands.length - 1) {
-        setMurfiOutput(prev => [
-          ...prev,
+        appendMurfiOutput([
           'Murfi server starting...',
           'Listening on port 8080',
           'Real-time processing ready',
           '✓ Murfi started successfully'
         ]);
       } else {
-        setMurfiOutput(prev => [...prev, '✓ Command executed']);
+        appendMurfiOutput('✓ Command executed');
       }
     }
 
@@ -493,21 +563,20 @@ export default function RunScan() {
     // Simulate command execution with output
     for (let i = 0; i < commands.length; i++) {
       const command = commands[i];
-      setPsychopyOutput(prev => [...prev, `$ ${command}`]);
+      appendPsychopyOutput(`$ ${command}`);
 
       // Simulate command output
       await new Promise(resolve => setTimeout(resolve, 500));
 
       if (i === commands.length - 1) {
-        setPsychopyOutput(prev => [
-          ...prev,
+        appendPsychopyOutput([
           'PsychoPy Builder starting...',
           'Display initialized on screen 0',
           'Task presentation ready',
           '✓ PsychoPy started successfully'
         ]);
       } else {
-        setPsychopyOutput(prev => [...prev, '✓ Command executed']);
+        appendPsychopyOutput('✓ Command executed');
       }
     }
 
@@ -584,7 +653,7 @@ export default function RunScan() {
       <div className="max-w-[1800px] mx-auto p-6 space-y-6">
         {/* Header */}
         <div>
-          <h1 className="text-3xl font-bold text-foreground bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
             rt-fMRI Neurofeedback Control
           </h1>
           <p className="text-muted-foreground mt-1 text-sm">

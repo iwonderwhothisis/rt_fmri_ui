@@ -18,21 +18,21 @@ export default function SessionDetail() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const loadSession = async () => {
+      try {
+        if (sessionId) {
+          const data = await sessionService.getSessionById(sessionId);
+          setSession(data);
+        }
+      } catch (error) {
+        console.error('Failed to load session:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
     loadSession();
   }, [sessionId]);
-
-  const loadSession = async () => {
-    try {
-      if (sessionId) {
-        const data = await sessionService.getSessionById(sessionId);
-        setSession(data);
-      }
-    } catch (error) {
-      console.error('Failed to load session:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleExport = (format: 'json' | 'csv') => {
     if (!session) return;
@@ -130,7 +130,7 @@ export default function SessionDetail() {
               Back
             </Button>
             <div>
-              <h1 className="text-3xl font-bold text-foreground bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
                 Session {session.id}
               </h1>
               <p className="text-muted-foreground mt-1">Detailed analysis and reports</p>

@@ -27,6 +27,7 @@ import {
 import { Participant } from '@/types/session';
 import { sessionService } from '@/services/mockSessionService';
 import { UserPlus, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface ParticipantSelectorProps {
   onParticipantSelect: (participantId: string, isNew?: boolean) => void;
@@ -50,37 +51,51 @@ export function ParticipantSelector({ onParticipantSelect, selectedParticipantId
       const data = await sessionService.getParticipants();
       setParticipants(data);
     } catch (error) {
-      // Error loading participants - silently fail
+      toast.error('Failed to load participants', {
+        description: 'Please try refreshing the page.',
+      });
     } finally {
       setLoading(false);
     }
   };
 
   const handleCreateParticipant = async () => {
-    if (!newParticipantId.trim()) {
+    const trimmedId = newParticipantId.trim();
+
+    if (!trimmedId) {
+      toast.error('Participant ID required', {
+        description: 'Please enter a valid participant ID.',
+      });
       return;
     }
 
     // Check if ID already exists
-    if (participants.some(p => p.id === newParticipantId.trim())) {
+    if (participants.some(p => p.id === trimmedId)) {
+      toast.error('Participant ID already exists', {
+        description: `A participant with ID "${trimmedId}" already exists.`,
+      });
       return;
     }
 
     setCreating(true);
     try {
       const created = await sessionService.createParticipant({
-        id: newParticipantId.trim(),
+        id: trimmedId,
         name: '',
         age: 0,
       });
-      setParticipants([...participants, created]);
+      // Update local state directly - no need to refetch
+      setParticipants(prev => [...prev, created]);
       onParticipantSelect(created.id, true);
       setShowNewForm(false);
       setNewParticipantId('');
-      // Reload participants to ensure fresh data
-      loadParticipants();
+      toast.success('Participant created', {
+        description: `Participant ${created.id} has been added.`,
+      });
     } catch (error) {
-      // Error creating participant - silently fail
+      toast.error('Failed to create participant', {
+        description: 'Please try again.',
+      });
     } finally {
       setCreating(false);
     }
