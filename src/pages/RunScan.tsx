@@ -487,7 +487,7 @@ export default function RunScan() {
     setQueueStarted(false);
     setQueueStopped(false);
     stoppedItemsRef.current.clear();
-    setSetupCompleted(false);
+    // Note: Don't reset setupCompleted here - it was already completed before reaching execute step
     setManualWorkflowStep(null);
   };
 
