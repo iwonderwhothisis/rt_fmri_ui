@@ -101,6 +101,11 @@ export function ParticipantSelector({ onParticipantSelect, selectedParticipantId
     }
   };
 
+  // Handle selection from dropdown - explicitly pass isNew=false
+  const handleSelectChange = (value: string) => {
+    onParticipantSelect(value, false);
+  };
+
   if (inline) {
     return (
       <div className="flex items-center gap-2">
@@ -108,7 +113,7 @@ export function ParticipantSelector({ onParticipantSelect, selectedParticipantId
           <Loader2 className="h-4 w-4 animate-spin text-primary" />
         ) : (
           <>
-            <Select value={selectedParticipantId} onValueChange={onParticipantSelect}>
+            <Select value={selectedParticipantId ?? ""} onValueChange={handleSelectChange}>
               <SelectTrigger id="participant" className="w-[180px] bg-input border-border">
                 <SelectValue placeholder="Select a participant" />
               </SelectTrigger>
@@ -197,7 +202,7 @@ export function ParticipantSelector({ onParticipantSelect, selectedParticipantId
         <div className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="participant">Select Participant</Label>
-            <Select value={selectedParticipantId} onValueChange={onParticipantSelect}>
+            <Select value={selectedParticipantId ?? ""} onValueChange={handleSelectChange}>
               <SelectTrigger id="participant" className="bg-input border-border">
                 <SelectValue placeholder="Choose participant..." />
               </SelectTrigger>
