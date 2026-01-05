@@ -6,8 +6,9 @@ import { SessionControls } from '@/components/SessionControls';
 import { BrainScanPreview } from '@/components/BrainScanPreview';
 import { WorkflowStepper, WorkflowStep } from '@/components/WorkflowStepper';
 import { InitializeStep } from '@/components/InitializeStep';
-import { CompactTerminalPanel } from '@/components/CompactTerminalPanel';
+import { XTerminal } from '@/components/XTerminal';
 import { PsychoPyConfig, SessionConfig, SessionStepHistory, SessionStep, Session } from '@/types/session';
+import type { TerminalStatus } from '@/types/terminal';
 import { sessionService } from '@/services/mockSessionService';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -46,8 +47,10 @@ export default function RunScan() {
   const [psychopyStarted, setPsychopyStarted] = useState(false);
   const [isStartingMurfi, setIsStartingMurfi] = useState(false);
   const [isStartingPsychoPy, setIsStartingPsychoPy] = useState(false);
-  const [murfiOutput, setMurfiOutput] = useState<string[]>([]);
-  const [psychopyOutput, setPsychopyOutput] = useState<string[]>([]);
+  const [murfiSessionActive, setMurfiSessionActive] = useState(false);
+  const [psychopySessionActive, setPsychopySessionActive] = useState(false);
+  const [murfiTerminalStatus, setMurfiTerminalStatus] = useState<TerminalStatus>('disconnected');
+  const [psychopyTerminalStatus, setPsychopyTerminalStatus] = useState<TerminalStatus>('disconnected');
   const [initializeConfirmed, setInitializeConfirmed] = useState(false);
   const [executionQueue, setExecutionQueue] = useState<QueueItem[]>([]);
   const [queueStarted, setQueueStarted] = useState(false);
@@ -491,104 +494,38 @@ export default function RunScan() {
     setManualWorkflowStep(null);
   };
 
-  // Maximum number of terminal output lines to keep (prevents memory issues)
-  const MAX_TERMINAL_LINES = 100;
-
-  const appendMurfiOutput = (lines: string | string[]) => {
-    setMurfiOutput(prev => {
-      const newLines = Array.isArray(lines) ? lines : [lines];
-      const combined = [...prev, ...newLines];
-      // Keep only the last MAX_TERMINAL_LINES
-      return combined.slice(-MAX_TERMINAL_LINES);
-    });
-  };
-
-  const appendPsychopyOutput = (lines: string | string[]) => {
-    setPsychopyOutput(prev => {
-      const newLines = Array.isArray(lines) ? lines : [lines];
-      const combined = [...prev, ...newLines];
-      // Keep only the last MAX_TERMINAL_LINES
-      return combined.slice(-MAX_TERMINAL_LINES);
-    });
-  };
-
-  const handleStartMurfi = async () => {
-    setIsStartingMurfi(true);
-    setMurfiOutput([]);
-
-    // Simulate running terminal commands for Murfi
-    const commands = [
-      'cd /path/to/murfi',
-      'source activate murfi_env',
-      'python murfi_server.py --port 8080',
-    ];
-
-    // Simulate command execution with output
-    for (let i = 0; i < commands.length; i++) {
-      const command = commands[i];
-      appendMurfiOutput(`$ ${command}`);
-
-      // Simulate command output
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      if (i === commands.length - 1) {
-        appendMurfiOutput([
-          'Murfi server starting...',
-          'Listening on port 8080',
-          'Real-time processing ready',
-          '✓ Murfi started successfully'
-        ]);
-      } else {
-        appendMurfiOutput('✓ Command executed');
-      }
-    }
-
-    setTimeout(() => {
+  // Terminal status change handlers
+  const handleMurfiStatusChange = (status: TerminalStatus) => {
+    setMurfiTerminalStatus(status);
+    if (status === 'connected') {
       setMurfiStarted(true);
       setIsStartingMurfi(false);
-    }, 500);
+    }
   };
 
-  const handleStartPsychoPy = async () => {
-    setIsStartingPsychoPy(true);
-    setPsychopyOutput([]);
-
-    // Simulate running terminal commands for PsychoPy
-    const commands = [
-      'cd /path/to/psychopy',
-      'source activate psychopy_env',
-      'python psychopy_runner.py --display 0',
-    ];
-
-    // Simulate command execution with output
-    for (let i = 0; i < commands.length; i++) {
-      const command = commands[i];
-      appendPsychopyOutput(`$ ${command}`);
-
-      // Simulate command output
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      if (i === commands.length - 1) {
-        appendPsychopyOutput([
-          'PsychoPy Builder starting...',
-          'Display initialized on screen 0',
-          'Task presentation ready',
-          '✓ PsychoPy started successfully'
-        ]);
-      } else {
-        appendPsychopyOutput('✓ Command executed');
-      }
-    }
-
-    setTimeout(() => {
+  const handlePsychoPyStatusChange = (status: TerminalStatus) => {
+    setPsychopyTerminalStatus(status);
+    if (status === 'connected') {
       setPsychopyStarted(true);
       setIsStartingPsychoPy(false);
-    }, 500);
+    }
+  };
+
+  const handleStartMurfi = () => {
+    setIsStartingMurfi(true);
+    setMurfiSessionActive(true);
+    setTerminalOpen(true); // Auto-open terminal panel
+  };
+
+  const handleStartPsychoPy = () => {
+    setIsStartingPsychoPy(true);
+    setPsychopySessionActive(true);
+    setTerminalOpen(true); // Auto-open terminal panel
   };
 
   const handleReset = async () => {
-    // If session was initialized and has data, save it before resetting
-    if (sessionInitialized && sessionConfig && sessionId && sessionStartTime && stepHistory.length > 0) {
+    // If session was initialized, save it and navigate to session overview
+    if (sessionInitialized && sessionConfig && sessionId && sessionStartTime) {
       try {
         const session: Session = {
           id: sessionId,
@@ -605,7 +542,10 @@ export default function RunScan() {
         navigate(`/session/${sessionId}`);
         return;
       } catch (error) {
-        // Error saving session - silently fail
+        console.error('Error saving session:', error);
+        // Still navigate even if save fails
+        navigate(`/session/${sessionId}`);
+        return;
       }
     }
 
@@ -624,8 +564,10 @@ export default function RunScan() {
     setManualWorkflowStep(null);
     setMurfiStarted(false);
     setPsychopyStarted(false);
-    setMurfiOutput([]);
-    setPsychopyOutput([]);
+    setMurfiSessionActive(false);
+    setPsychopySessionActive(false);
+    setMurfiTerminalStatus('disconnected');
+    setPsychopyTerminalStatus('disconnected');
     setInitializeConfirmed(false);
     setSessionId(null);
     setSessionStartTime(null);
@@ -679,8 +621,6 @@ export default function RunScan() {
             onStartPsychoPy={handleStartPsychoPy}
             isStartingMurfi={isStartingMurfi}
             isStartingPsychoPy={isStartingPsychoPy}
-            murfiOutput={murfiOutput}
-            psychopyOutput={psychopyOutput}
             onConfirmProceed={handleConfirmInitialize}
             canProceed={murfiStarted && psychopyStarted}
           />
@@ -802,8 +742,8 @@ export default function RunScan() {
           </div>
         )}
 
-        {/* Collapsible terminals card - only show after leaving initialize step */}
-        {initializeConfirmed && (murfiStarted || psychopyStarted) && (
+        {/* Collapsible terminals card - show when any session is active */}
+        {(murfiSessionActive || psychopySessionActive) && (
           <Collapsible open={terminalOpen} onOpenChange={setTerminalOpen}>
             <Card className="p-4 md:p-5 bg-card border-border">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -817,10 +757,10 @@ export default function RunScan() {
                 </div>
                 <div className="flex items-center gap-2">
                   <Badge variant="outline" className="text-[11px] font-medium">
-                    Murfi · {murfiStarted ? 'Running' : isStartingMurfi ? 'Starting...' : 'Idle'}
+                    Murfi · {murfiTerminalStatus === 'connected' ? 'Running' : murfiTerminalStatus === 'connecting' ? 'Connecting...' : 'Disconnected'}
                   </Badge>
                   <Badge variant="outline" className="text-[11px] font-medium">
-                    PsychoPy · {psychopyStarted ? 'Running' : isStartingPsychoPy ? 'Starting...' : 'Idle'}
+                    PsychoPy · {psychopyTerminalStatus === 'connected' ? 'Running' : psychopyTerminalStatus === 'connecting' ? 'Connecting...' : 'Disconnected'}
                   </Badge>
                   <Button
                     variant="ghost"
@@ -837,16 +777,30 @@ export default function RunScan() {
               </div>
 
               <CollapsibleContent className="mt-4">
-                <CompactTerminalPanel
-                  className="shadow-none border border-border/60 bg-card"
-                  title="Live output"
-                  murfiOutput={murfiOutput}
-                  psychopyOutput={psychopyOutput}
-                  murfiStarted={murfiStarted}
-                  psychopyStarted={psychopyStarted}
-                  isStartingMurfi={isStartingMurfi}
-                  isStartingPsychoPy={isStartingPsychoPy}
-                />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {murfiSessionActive && (
+                    <div className="space-y-2">
+                      <div className="text-xs font-semibold text-foreground">Murfi</div>
+                      <div className="rounded-lg border border-border/60 overflow-hidden" style={{ height: '250px' }}>
+                        <XTerminal
+                          sessionId="murfi"
+                          onStatusChange={handleMurfiStatusChange}
+                        />
+                      </div>
+                    </div>
+                  )}
+                  {psychopySessionActive && (
+                    <div className="space-y-2">
+                      <div className="text-xs font-semibold text-foreground">PsychoPy</div>
+                      <div className="rounded-lg border border-border/60 overflow-hidden" style={{ height: '250px' }}>
+                        <XTerminal
+                          sessionId="psychopy"
+                          onStatusChange={handlePsychoPyStatusChange}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
               </CollapsibleContent>
             </Card>
           </Collapsible>
