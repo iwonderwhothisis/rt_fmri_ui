@@ -21,6 +21,21 @@ export function StepPipeline({
   stepExecutionCounts,
   onStepClick,
 }: StepPipelineProps) {
+  // Track expanded state for each step at the parent level
+  const [expandedSteps, setExpandedSteps] = useState<Set<SessionStep>>(new Set());
+
+  const toggleStepExpanded = (step: SessionStep) => {
+    setExpandedSteps(prev => {
+      const next = new Set(prev);
+      if (next.has(step)) {
+        next.delete(step);
+      } else {
+        next.add(step);
+      }
+      return next;
+    });
+  };
+
   const getStepStatus = (step: SessionStep) => {
     if (runningSteps.has(step)) return 'running';
     const history = stepHistory.filter((h) => h.step === step);
@@ -88,7 +103,7 @@ export function StepPipeline({
           const duration = getStepDuration(step);
           const isClickable = onStepClick && status !== 'running';
           const stepExecutions = stepHistory.filter((h) => h.step === step);
-          const [isExpanded, setIsExpanded] = useState(false);
+          const isExpanded = expandedSteps.has(step);
 
           return (
             <StepPipelineItem
@@ -101,7 +116,7 @@ export function StepPipeline({
               isClickable={isClickable}
               stepExecutions={stepExecutions}
               isExpanded={isExpanded}
-              onToggleExpand={() => setIsExpanded(!isExpanded)}
+              onToggleExpand={() => toggleStepExpanded(step)}
               onStepClick={onStepClick}
               formatStepName={formatStepName}
               getStepIcon={getStepIcon}

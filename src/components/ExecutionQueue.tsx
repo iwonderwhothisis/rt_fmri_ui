@@ -14,11 +14,10 @@ export interface QueueItem {
 
 interface QueueItemCardProps {
   item: QueueItem;
-  index: number;
   onRemove: (id: string) => void;
 }
 
-export function QueueItemCard({ item, index, onRemove }: QueueItemCardProps) {
+export function QueueItemCard({ item, onRemove }: QueueItemCardProps) {
   const {
     attributes,
     listeners,
@@ -143,11 +142,10 @@ export function ExecutionQueue({ items, onRemove, onReorder }: ExecutionQueuePro
 
   return (
     <div className="flex flex-wrap gap-2">
-      {items.map((item, index) => (
+      {items.map((item) => (
         <QueueItemCard
           key={item.id}
           item={item}
-          index={index}
           onRemove={onRemove}
         />
       ))}

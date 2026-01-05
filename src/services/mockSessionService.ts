@@ -17,8 +17,8 @@ const mockPreviousSessions: Session[] = [
       protocol: 'DMN-NFB',
       psychopyConfig: {
         displayFeedback: 'Feedback',
-        participantAnchor: 'toe',
-        feedbackCondition: '15min',
+        participantAnchor: 'toe' as const,
+        feedbackCondition: '15min' as const,
       },
     },
     status: 'completed',
