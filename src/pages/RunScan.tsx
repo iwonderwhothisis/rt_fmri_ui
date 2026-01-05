@@ -6,9 +6,10 @@ import { SessionControls } from '@/components/SessionControls';
 import { BrainScanPreview } from '@/components/BrainScanPreview';
 import { WorkflowStepper, WorkflowStep } from '@/components/WorkflowStepper';
 import { InitializeStep } from '@/components/InitializeStep';
-import { XTerminal } from '@/components/XTerminal';
+import { XTerminal, TerminalHandle } from '@/components/XTerminal';
 import { PsychoPyConfig, SessionConfig, SessionStepHistory, SessionStep, Session } from '@/types/session';
 import type { TerminalStatus } from '@/types/terminal';
+import type { CommandsConfig } from '@/types/commands';
 import { sessionService } from '@/services/mockSessionService';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -58,6 +59,9 @@ export default function RunScan() {
   const [setupCompleted, setSetupCompleted] = useState(false);
   const stoppedItemsRef = useRef<Set<string>>(new Set());
   const [terminalOpen, setTerminalOpen] = useState(false);
+  const [commandsConfig, setCommandsConfig] = useState<CommandsConfig | null>(null);
+  const murfiTerminalRef = useRef<TerminalHandle | null>(null);
+  const psychopyTerminalRef = useRef<TerminalHandle | null>(null);
 
   // Determine workflow step based on state
   // Priority order: execute > configure > participant > initialize
@@ -106,6 +110,45 @@ export default function RunScan() {
     }
   }, [calculatedWorkflowStep, completedSteps, manualWorkflowStep]);
 
+  // Fetch commands configuration on mount
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const response = await fetch('/api/config/commands');
+        if (response.ok) {
+          const config = await response.json();
+          setCommandsConfig(config);
+          console.log('[RunScan] Loaded commands config:', config);
+        } else {
+          console.error('[RunScan] Failed to load commands config');
+        }
+      } catch (error) {
+        console.error('[RunScan] Error loading commands config:', error);
+      }
+    };
+    fetchConfig();
+  }, []);
+
+  // Helper function to send command to appropriate terminal
+  const sendCommandToTerminal = useCallback((terminal: 'murfi' | 'psychopy', command: string) => {
+    const terminalHandle = terminal === 'murfi' ? murfiTerminalRef.current : psychopyTerminalRef.current;
+    if (terminalHandle) {
+      console.log(`[RunScan] Sending command to ${terminal}:`, command);
+      terminalHandle.sendCommand(command);
+    } else {
+      console.warn(`[RunScan] Terminal ${terminal} not ready, cannot send command`);
+    }
+  }, []);
+
+  // Helper function to substitute variables in commands
+  const substituteVariables = useCallback((command: string, variables: Record<string, string>) => {
+    let result = command;
+    for (const [key, value] of Object.entries(variables)) {
+      result = result.replace(new RegExp(`\\$\\{${key}\\}`, 'g'), value);
+    }
+    return result;
+  }, []);
+
   const handleParticipantSelect = (participantId: string, isNewParticipant: boolean = false) => {
     setSessionConfig({
       participantId,
@@ -135,6 +178,16 @@ export default function RunScan() {
       const startedStep = await sessionService.startStep('setup');
       const startedStepWithId = { ...startedStep, _entryId: historyEntryId };
       setStepHistory(prev => [...prev, startedStepWithId]);
+
+      // Execute command from config if available
+      const stepConfig = commandsConfig?.steps['setup'];
+      if (stepConfig) {
+        const variables: Record<string, string> = {
+          participantId: sessionConfig?.participantId || '',
+        };
+        const command = substituteVariables(stepConfig.command, variables);
+        sendCommandToTerminal(stepConfig.terminal, command);
+      }
 
       // Simulate step execution
       const completedStep = await sessionService.completeStep('setup');
@@ -199,6 +252,16 @@ export default function RunScan() {
       const startedStep = await sessionService.startStep(step);
       const startedStepWithId = { ...startedStep, _entryId: historyEntryId };
       setStepHistory(prev => [...prev, startedStepWithId]);
+
+      // Execute command from config if available
+      const stepConfig = commandsConfig?.steps[step];
+      if (stepConfig) {
+        const variables: Record<string, string> = {
+          participantId: sessionConfig?.participantId || '',
+        };
+        const command = substituteVariables(stepConfig.command, variables);
+        sendCommandToTerminal(stepConfig.terminal, command);
+      }
 
       // Simulate step execution
       const completedStep = await sessionService.completeStep(step);
@@ -367,6 +430,16 @@ export default function RunScan() {
       const startedStepWithId = { ...startedStep, _entryId: historyEntryId };
       setStepHistory(prev => [...prev, startedStepWithId]);
 
+      // Execute command from config if available
+      const stepConfig = commandsConfig?.steps[item.step];
+      if (stepConfig) {
+        const variables: Record<string, string> = {
+          participantId: sessionConfig?.participantId || '',
+        };
+        const command = substituteVariables(stepConfig.command, variables);
+        sendCommandToTerminal(stepConfig.terminal, command);
+      }
+
       // Simulate step execution
       const completedStep = await sessionService.completeStep(item.step);
 
@@ -436,7 +509,7 @@ export default function RunScan() {
       });
       setIsRunning(false);
     }
-  }, []);
+  }, [commandsConfig, sessionConfig?.participantId, substituteVariables, sendCommandToTerminal]);
 
   // Auto-execution logic
   useEffect(() => {
@@ -785,6 +858,9 @@ export default function RunScan() {
                         <XTerminal
                           sessionId="murfi"
                           onStatusChange={handleMurfiStatusChange}
+                          onReady={(handle) => {
+                            murfiTerminalRef.current = handle;
+                          }}
                         />
                       </div>
                     </div>
@@ -796,6 +872,9 @@ export default function RunScan() {
                         <XTerminal
                           sessionId="psychopy"
                           onStatusChange={handlePsychoPyStatusChange}
+                          onReady={(handle) => {
+                            psychopyTerminalRef.current = handle;
+                          }}
                         />
                       </div>
                     </div>

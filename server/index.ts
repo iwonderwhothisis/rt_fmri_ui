@@ -3,6 +3,7 @@ import cors from 'cors';
 import { createServer } from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
 import { TerminalManager } from './terminalManager.js';
+import { loadCommandsConfig, getSystemCommand } from './commandService.js';
 
 const app = express();
 const PORT = 3001;
@@ -11,7 +12,7 @@ app.use(cors());
 app.use(express.json());
 
 const server = createServer(app);
-const wss = new WebSocketServer({ server });
+const wss = new WebSocketServer({ server, path: '/ws' });
 
 const terminalManager = new TerminalManager();
 
@@ -27,11 +28,30 @@ app.get('/health', (_req, res) => {
   });
 });
 
+// Commands configuration endpoint
+app.get('/api/config/commands', (_req, res) => {
+  try {
+    const config = loadCommandsConfig();
+    res.json(config);
+  } catch (error) {
+    console.error('[Server] Error loading commands config:', error);
+    res.status(500).json({ error: 'Failed to load commands configuration' });
+  }
+});
+
 // WebSocket connection handler
 wss.on('connection', (ws, req) => {
   const url = new URL(req.url || '', `http://localhost:${PORT}`);
   const sessionId = url.searchParams.get('sessionId');
-  const initialCommand = url.searchParams.get('initialCommand');
+  // Get initial command from URL params or look up from config
+  let initialCommand = url.searchParams.get('initialCommand');
+  if (!initialCommand && sessionId) {
+    // Try to get start command from config for this system
+    initialCommand = getSystemCommand(sessionId);
+    if (initialCommand) {
+      console.log(`[Terminal] Using config start command for ${sessionId}`);
+    }
+  }
 
   if (!sessionId) {
     ws.close(1008, 'Session ID required');
@@ -75,6 +95,14 @@ wss.on('connection', (ws, req) => {
       switch (msg.type) {
         case 'input':
           terminalManager.write(sessionId, msg.data);
+          break;
+
+        case 'command':
+          // Execute a command in the terminal (adds carriage return for PTY)
+          if (msg.command) {
+            console.log(`[Terminal] Executing command in ${sessionId}: ${msg.command}`);
+            terminalManager.write(sessionId, msg.command + '\r');
+          }
           break;
 
         case 'resize':

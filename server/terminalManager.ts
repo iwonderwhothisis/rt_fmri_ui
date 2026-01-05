@@ -24,11 +24,16 @@ export class TerminalManager {
 
     let childProcess: ChildProcess;
     try {
-      childProcess = spawn(shell, ['-i'], {
+      // Spawn shell as a login shell for proper initialization
+      childProcess = spawn(shell, ['-l'], {
         cwd: process.env.HOME || process.cwd(),
         env: {
           ...process.env,
           TERM: 'xterm-256color',
+          COLORTERM: 'truecolor',
+          // Force color output even without TTY
+          CLICOLOR_FORCE: '1',
+          FORCE_COLOR: '1',
         },
         stdio: ['pipe', 'pipe', 'pipe'],
       });
@@ -38,11 +43,14 @@ export class TerminalManager {
       return null;
     }
 
-    if (!childProcess.stdout || !childProcess.stderr || !childProcess.stdin) {
+    if (!childProcess.stdout || !childProcess.stdin) {
       console.error(`[TerminalManager] Shell stdio not available`);
       onExit(-1);
       return null;
     }
+
+    // Send a welcome message and show we're connected
+    onData(`\x1b[32m[Terminal connected to ${shell}]\x1b[0m\r\n`);
 
     // Handle stdout
     childProcess.stdout.on('data', (data: Buffer) => {
@@ -50,7 +58,7 @@ export class TerminalManager {
     });
 
     // Handle stderr
-    childProcess.stderr.on('data', (data: Buffer) => {
+    childProcess.stderr?.on('data', (data: Buffer) => {
       onData(data.toString());
     });
 
@@ -69,11 +77,12 @@ export class TerminalManager {
 
     this.sessions.set(id, { process: childProcess, createdAt: new Date() });
 
-    // Send initial command if provided
-    if (initialCommand && childProcess.stdin) {
+    // Send initial command after a brief delay for shell startup
+    if (initialCommand) {
       setTimeout(() => {
+        console.log(`[TerminalManager] Sending initial command: ${initialCommand}`);
         childProcess.stdin?.write(initialCommand + '\n');
-      }, 100);
+      }, 200);
     }
 
     console.log(`[TerminalManager] Session ${id} created successfully`);
@@ -86,14 +95,13 @@ export class TerminalManager {
 
   write(id: string, data: string): void {
     const session = this.sessions.get(id);
-    if (session && session.process.stdin) {
+    if (session?.process.stdin) {
       session.process.stdin.write(data);
     }
   }
 
   resize(_id: string, _cols: number, _rows: number): void {
-    // Not supported with child_process (no PTY)
-    // Could use node-pty in the future for full PTY support
+    // Resize not supported with child_process approach
   }
 
   destroy(id: string): void {
