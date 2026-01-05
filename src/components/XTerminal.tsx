@@ -6,11 +6,16 @@ import '@xterm/xterm/css/xterm.css';
 import { cn } from '@/lib/utils';
 import type { TerminalStatus, ServerMessage, ClientMessage } from '@/types/terminal';
 
+export interface TerminalHandle {
+  sendCommand: (command: string) => void;
+}
+
 interface XTerminalProps {
   sessionId: string;
   initialCommand?: string;
   onStatusChange?: (status: TerminalStatus) => void;
   onExit?: (exitCode: number) => void;
+  onReady?: (handle: TerminalHandle) => void;
   className?: string;
   disabled?: boolean;
 }
@@ -20,6 +25,7 @@ export function XTerminal({
   initialCommand,
   onStatusChange,
   onExit,
+  onReady,
   className,
   disabled = false,
 }: XTerminalProps) {
@@ -32,8 +38,10 @@ export function XTerminal({
   // Store callbacks in refs to avoid dependency issues
   const onStatusChangeRef = useRef(onStatusChange);
   const onExitRef = useRef(onExit);
+  const onReadyRef = useRef(onReady);
   onStatusChangeRef.current = onStatusChange;
   onExitRef.current = onExit;
+  onReadyRef.current = onReady;
 
   useEffect(() => {
     if (!terminalRef.current || disabled) return;
@@ -52,6 +60,7 @@ export function XTerminal({
       },
       scrollback: 5000,
       convertEol: true,
+      disableStdin: false,  // Explicitly enable input
     });
 
     const fitAddon = new FitAddon();
@@ -82,6 +91,18 @@ export function XTerminal({
     const ws = new WebSocket(wsUrl.toString());
     wsRef.current = ws;
 
+    // Create terminal handle for sending commands
+    const handle: TerminalHandle = {
+      sendCommand: (command: string) => {
+        if (ws.readyState === WebSocket.OPEN) {
+          const msg = { type: 'command', sessionId, command };
+          ws.send(JSON.stringify(msg));
+        } else {
+          console.warn('[XTerminal] Cannot send command - WebSocket not connected');
+        }
+      },
+    };
+
     ws.onopen = () => {
       onStatusChangeRef.current?.('connected');
       // Send initial resize
@@ -94,6 +115,8 @@ export function XTerminal({
         };
         ws.send(JSON.stringify(msg));
       }
+      // Notify parent that terminal is ready
+      onReadyRef.current?.(handle);
     };
 
     ws.onmessage = (event) => {
@@ -120,10 +143,23 @@ export function XTerminal({
     // Forward terminal input to WebSocket
     const dataDisposable = term.onData((data) => {
       if (ws.readyState === WebSocket.OPEN) {
-        // Convert carriage return to newline for shell compatibility
-        const normalizedData = data === '\r' ? '\n' : data;
-        const msg: ClientMessage = { type: 'input', sessionId, data: normalizedData };
-        ws.send(JSON.stringify(msg));
+        // Local echo since we don't have PTY
+        if (data === '\r') {
+          // Enter key - show newline locally and send \n to shell
+          term.write('\r\n');
+          const msg: ClientMessage = { type: 'input', sessionId, data: '\n' };
+          ws.send(JSON.stringify(msg));
+        } else if (data === '\x7f') {
+          // Backspace - handle locally
+          term.write('\b \b');
+          const msg: ClientMessage = { type: 'input', sessionId, data };
+          ws.send(JSON.stringify(msg));
+        } else {
+          // Echo character locally and send to shell
+          term.write(data);
+          const msg: ClientMessage = { type: 'input', sessionId, data };
+          ws.send(JSON.stringify(msg));
+        }
       }
     });
 

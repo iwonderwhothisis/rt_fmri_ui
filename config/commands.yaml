@@ -1,0 +1,74 @@
+# Neuro-Orch Command Configuration
+# This file maps buttons and actions to bash commands
+
+# System initialization commands
+# These run when "Start Murfi" or "Start PsychoPy" buttons are clicked
+systems:
+  murfi:
+    name: "Murfi"
+    description: "Real-time fMRI processing system"
+    startCommand: "echo 'Starting Murfi...' && sleep 1 && echo 'Murfi ready'"
+
+  psychopy:
+    name: "PsychoPy"
+    description: "Task presentation system"
+    startCommand: "echo 'Starting PsychoPy...' && sleep 1 && echo 'PsychoPy ready'"
+
+# Session step commands
+# These run when steps are executed from the queue
+# terminal: which terminal to run the command in (murfi or psychopy)
+# command: the bash command to execute
+steps:
+  create:
+    name: "Create Participant"
+    terminal: "murfi"
+    command: "echo 'Creating participant: ${participantId}'"
+
+  setup:
+    name: "Setup Session"
+    terminal: "murfi"
+    command: "echo 'Running setup...'"
+
+  2vol:
+    name: "2 Volume Calibration"
+    terminal: "murfi"
+    command: "echo 'Running 2vol calibration...'"
+
+  resting_state:
+    name: "Resting State"
+    terminal: "murfi"
+    command: "echo 'Running resting state scan...'"
+
+  extract_rs_networks:
+    name: "Extract RS Networks"
+    terminal: "murfi"
+    command: "echo 'Extracting resting state networks...'"
+
+  process_roi_masks:
+    name: "Process ROI Masks"
+    terminal: "murfi"
+    command: "echo 'Processing ROI masks...'"
+
+  register:
+    name: "Registration"
+    terminal: "murfi"
+    command: "echo 'Running registration...'"
+
+  feedback:
+    name: "Feedback"
+    terminal: "psychopy"
+    command: "echo 'Running feedback session...'"
+
+  cleanup:
+    name: "Cleanup"
+    terminal: "murfi"
+    command: "echo 'Running cleanup...'"
+
+# Additional custom actions (optional)
+actions:
+  stopAll:
+    name: "Stop All Processes"
+    terminals:
+      - murfi
+      - psychopy
+    command: "echo 'Stopping...'"
