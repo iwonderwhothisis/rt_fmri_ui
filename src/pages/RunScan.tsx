@@ -54,7 +54,7 @@ export default function RunScan() {
   const [queueStopped, setQueueStopped] = useState(false);
   const [setupCompleted, setSetupCompleted] = useState(false);
   const stoppedItemsRef = useRef<Set<string>>(new Set());
-  const [terminalOpen, setTerminalOpen] = useState(true);
+  const [terminalOpen, setTerminalOpen] = useState(false);
 
   // Determine workflow step based on state
   // Priority order: execute > configure > participant > initialize
@@ -802,53 +802,55 @@ export default function RunScan() {
           </div>
         )}
 
-        {/* Collapsible terminals card pinned to bottom */}
-        <Collapsible open={terminalOpen} onOpenChange={setTerminalOpen}>
-          <Card className="p-4 md:p-5 bg-card border-border">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
-                  <Terminal className="h-5 w-5" />
+        {/* Collapsible terminals card - only show after leaving initialize step */}
+        {initializeConfirmed && (murfiStarted || psychopyStarted) && (
+          <Collapsible open={terminalOpen} onOpenChange={setTerminalOpen}>
+            <Card className="p-4 md:p-5 bg-card border-border">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+                    <Terminal className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">System terminals</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm font-semibold text-foreground">System terminals</p>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-[11px] font-medium">
+                    Murfi · {murfiStarted ? 'Running' : isStartingMurfi ? 'Starting...' : 'Idle'}
+                  </Badge>
+                  <Badge variant="outline" className="text-[11px] font-medium">
+                    PsychoPy · {psychopyStarted ? 'Running' : isStartingPsychoPy ? 'Starting...' : 'Idle'}
+                  </Badge>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setTerminalOpen(prev => !prev)}
+                    className="gap-1 text-muted-foreground"
+                  >
+                    {terminalOpen ? 'Hide' : 'Show'}
+                    <ChevronDown
+                      className={`h-4 w-4 transition-transform ${terminalOpen ? 'rotate-180' : ''}`}
+                    />
+                  </Button>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <Badge variant="outline" className="text-[11px] font-medium">
-                  Murfi · {murfiStarted ? 'Running' : isStartingMurfi ? 'Starting...' : 'Idle'}
-                </Badge>
-                <Badge variant="outline" className="text-[11px] font-medium">
-                  PsychoPy · {psychopyStarted ? 'Running' : isStartingPsychoPy ? 'Starting...' : 'Idle'}
-                </Badge>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setTerminalOpen(prev => !prev)}
-                  className="gap-1 text-muted-foreground"
-                >
-                  {terminalOpen ? 'Hide' : 'Show'}
-                  <ChevronDown
-                    className={`h-4 w-4 transition-transform ${terminalOpen ? 'rotate-180' : ''}`}
-                  />
-                </Button>
-              </div>
-            </div>
 
-            <CollapsibleContent className="mt-4">
-              <CompactTerminalPanel
-                className="shadow-none border border-border/60 bg-card"
-                title="Live output"
-                murfiOutput={murfiOutput}
-                psychopyOutput={psychopyOutput}
-                murfiStarted={murfiStarted}
-                psychopyStarted={psychopyStarted}
-                isStartingMurfi={isStartingMurfi}
-                isStartingPsychoPy={isStartingPsychoPy}
-              />
-            </CollapsibleContent>
-          </Card>
-        </Collapsible>
+              <CollapsibleContent className="mt-4">
+                <CompactTerminalPanel
+                  className="shadow-none border border-border/60 bg-card"
+                  title="Live output"
+                  murfiOutput={murfiOutput}
+                  psychopyOutput={psychopyOutput}
+                  murfiStarted={murfiStarted}
+                  psychopyStarted={psychopyStarted}
+                  isStartingMurfi={isStartingMurfi}
+                  isStartingPsychoPy={isStartingPsychoPy}
+                />
+              </CollapsibleContent>
+            </Card>
+          </Collapsible>
+        )}
       </div>
     </div>
   );
