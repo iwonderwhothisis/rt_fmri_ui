@@ -7,6 +7,15 @@ export default defineConfig({
   server: {
     host: "::",
     port: 8080,
+    proxy: {
+      '/ws': {
+        target: 'ws://localhost:3001',
+        ws: true,
+      },
+      '/health': {
+        target: 'http://localhost:3001',
+      },
+    },
   },
   plugins: [react()],
   resolve: {

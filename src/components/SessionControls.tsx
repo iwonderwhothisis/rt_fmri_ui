@@ -9,7 +9,6 @@ import {
   useSensors,
   DragStartEvent,
   DragEndEvent,
-  DragOverEvent,
   useDraggable,
   useDroppable,
 } from '@dnd-kit/core';
@@ -154,10 +153,6 @@ export function SessionControls({
     }
   };
 
-  const handleDragOver = (event: DragOverEvent) => {
-    // This is handled automatically by dnd-kit
-  };
-
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveId(null);
@@ -201,7 +196,6 @@ export function SessionControls({
       sensors={sensors}
       collisionDetection={closestCenter}
       onDragStart={handleDragStart}
-      onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
       onDragCancel={handleDragCancel}
     >
@@ -322,11 +316,10 @@ export function SessionControls({
                 ) : (
                   <SortableContext items={queueItems.map(item => item.id)} strategy={verticalListSortingStrategy}>
                     <div className="flex flex-wrap gap-2">
-                      {queueItems.map((item, index) => (
+                      {queueItems.map((item) => (
                         <QueueItemCard
                           key={item.id}
                           item={item}
-                          index={index}
                           onRemove={onRemoveFromQueue}
                         />
                       ))}

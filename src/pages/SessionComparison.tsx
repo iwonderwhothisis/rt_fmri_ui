@@ -14,22 +14,22 @@ export default function SessionComparison() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const loadSessions = async () => {
+      try {
+        const ids = searchParams.get('ids')?.split(',') || [];
+        const loadedSessions = await Promise.all(
+          ids.map(id => sessionService.getSessionById(id))
+        );
+        setSessions(loadedSessions.filter(s => s !== null) as Session[]);
+      } catch (error) {
+        console.error('Failed to load sessions:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
     loadSessions();
   }, [searchParams]);
-
-  const loadSessions = async () => {
-    try {
-      const ids = searchParams.get('ids')?.split(',') || [];
-      const loadedSessions = await Promise.all(
-        ids.map(id => sessionService.getSessionById(id))
-      );
-      setSessions(loadedSessions.filter(s => s !== null) as Session[]);
-    } catch (error) {
-      console.error('Failed to load sessions:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -95,7 +95,7 @@ export default function SessionComparison() {
             Back
           </Button>
           <div>
-            <h1 className="text-3xl font-bold text-foreground bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
               Session Comparison
             </h1>
             <p className="text-muted-foreground mt-1">
