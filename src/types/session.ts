@@ -26,8 +26,8 @@ export interface SessionStepHistory {
   message?: string;
 }
 
-// Valid participant anchor options
-export type ParticipantAnchor = 'toe' | 'finger' | 'hand' | 'nose';
+// Participant anchor (free text entry)
+export type ParticipantAnchor = string;
 
 // Valid feedback condition options
 export type FeedbackCondition = '5min' | '10min' | '15min' | '20min' | '30min';

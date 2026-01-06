@@ -1,4 +1,5 @@
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -6,7 +7,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { PsychoPyConfig, ParticipantAnchor, FeedbackCondition } from '@/types/session';
+import { PsychoPyConfig, FeedbackCondition } from '@/types/session';
 
 interface PsychoPyConfigProps {
   config: PsychoPyConfig;
@@ -39,22 +40,15 @@ export function PsychoPyConfigComponent({ config, onChange }: PsychoPyConfigProp
 
         <div className="space-y-2">
           <Label htmlFor="anchor">Participant Anchor</Label>
-          <Select
+          <Input
+            id="anchor"
             value={config.participantAnchor}
-            onValueChange={(value: ParticipantAnchor) =>
-              onChange({ ...config, participantAnchor: value })
+            onChange={(e) =>
+              onChange({ ...config, participantAnchor: e.target.value })
             }
-          >
-            <SelectTrigger id="anchor" className="bg-input border-border">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className="bg-popover border-border">
-              <SelectItem value="toe">Toe</SelectItem>
-              <SelectItem value="finger">Finger</SelectItem>
-              <SelectItem value="hand">Hand</SelectItem>
-              <SelectItem value="nose">Nose</SelectItem>
-            </SelectContent>
-          </Select>
+            placeholder="e.g., toe, finger, hand"
+            className="bg-input border-border"
+          />
         </div>
 
         <div className="space-y-2">
