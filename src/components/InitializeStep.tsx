@@ -2,6 +2,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { CheckCircle2, Play, Loader2, ArrowRight, Terminal } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useButtonCommand } from '@/hooks/useButtonCommand';
 
 interface InitializeStepProps {
   murfiStarted: boolean;
@@ -24,6 +25,25 @@ export function InitializeStep({
   onConfirmProceed,
   canProceed = false,
 }: InitializeStepProps) {
+  const startMurfiCmd = useButtonCommand('initialize.startMurfi');
+  const startPsychoPyCmd = useButtonCommand('initialize.startPsychoPy');
+  const proceedCmd = useButtonCommand('initialize.proceed');
+
+  const handleStartMurfi = () => {
+    onStartMurfi();
+    startMurfiCmd.execute();
+  };
+
+  const handleStartPsychoPy = () => {
+    onStartPsychoPy();
+    startPsychoPyCmd.execute();
+  };
+
+  const handleProceed = () => {
+    onConfirmProceed?.();
+    proceedCmd.execute();
+  };
+
   return (
     <Card className="p-6 bg-card border-border">
       <h2 className="text-xl font-semibold mb-4 text-foreground flex items-center gap-2">
@@ -54,7 +74,7 @@ export function InitializeStep({
             Real-time fMRI processing system
           </p>
           <Button
-            onClick={onStartMurfi}
+            onClick={handleStartMurfi}
             disabled={murfiStarted || isStartingMurfi}
             className={cn(
               "w-full",
@@ -112,7 +132,7 @@ export function InitializeStep({
             Task presentation system
           </p>
           <Button
-            onClick={onStartPsychoPy}
+            onClick={handleStartPsychoPy}
             disabled={psychopyStarted || isStartingPsychoPy}
             className={cn(
               "w-full",
@@ -163,7 +183,7 @@ export function InitializeStep({
             </p>
             {onConfirmProceed && (
               <Button
-                onClick={onConfirmProceed}
+                onClick={handleProceed}
                 disabled={!canProceed}
                 className="bg-success hover:bg-success/90 text-success-foreground w-full sm:w-auto"
               >

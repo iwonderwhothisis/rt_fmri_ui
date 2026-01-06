@@ -98,10 +98,10 @@ wss.on('connection', (ws, req) => {
           break;
 
         case 'command':
-          // Execute a command in the terminal (adds carriage return for PTY)
+          // Execute a command in the terminal (adds newline for non-TTY shell)
           if (msg.command) {
             console.log(`[Terminal] Executing command in ${sessionId}: ${msg.command}`);
-            terminalManager.write(sessionId, msg.command + '\r');
+            terminalManager.write(sessionId, msg.command + '\n');
           }
           break;
 

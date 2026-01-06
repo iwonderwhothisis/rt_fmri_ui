@@ -24,6 +24,7 @@ import { SessionConfig, SessionStep } from '@/types/session';
 import { QueueItem } from '@/components/ExecutionQueue';
 import { QueueItemCard } from '@/components/ExecutionQueue';
 import { cn } from '@/lib/utils';
+import { useButtonCommand } from '@/hooks/useButtonCommand';
 
 interface SessionControlsProps {
   config: SessionConfig | null;
@@ -127,6 +128,49 @@ export function SessionControls({
   const [activeId, setActiveId] = useState<string | null>(null);
   const [draggedStep, setDraggedStep] = useState<SessionStep | null>(null);
 
+  const startCmd = useButtonCommand('session.start');
+  const resetCmd = useButtonCommand('session.reset');
+  const startQueueCmd = useButtonCommand('session.startQueue');
+  const resumeCmd = useButtonCommand('session.resume');
+  const stopCmd = useButtonCommand('session.stop');
+  const clearCmd = useButtonCommand('session.clear');
+  const finishCmd = useButtonCommand('session.finish');
+
+  const handleStart = () => {
+    onStart();
+    startCmd.execute({ participantId: config?.participantId || '' });
+  };
+
+  const handleReset = () => {
+    onReset();
+    resetCmd.execute();
+  };
+
+  const handleStartQueue = () => {
+    onStartQueue();
+    startQueueCmd.execute();
+  };
+
+  const handleResume = () => {
+    onResume();
+    resumeCmd.execute();
+  };
+
+  const handleStop = () => {
+    onStop();
+    stopCmd.execute();
+  };
+
+  const handleClear = () => {
+    onClearQueue();
+    clearCmd.execute();
+  };
+
+  const handleFinish = () => {
+    onReset();
+    finishCmd.execute();
+  };
+
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, {
@@ -214,7 +258,7 @@ export function SessionControls({
         <div className="flex gap-3">
           {!sessionInitialized ? (
             <Button
-              onClick={onStart}
+              onClick={handleStart}
               disabled={!isConfigValid}
               className="flex-1 bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-primary-foreground font-semibold shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300"
               size="lg"
@@ -226,7 +270,7 @@ export function SessionControls({
 
           {!sessionInitialized && (
             <Button
-              onClick={onReset}
+              onClick={handleReset}
               disabled={isRunning}
               variant="outline"
               size="lg"
@@ -263,7 +307,7 @@ export function SessionControls({
                         <Button
                           variant="default"
                           size="sm"
-                          onClick={onStartQueue}
+                          onClick={handleStartQueue}
                           className="h-7 bg-primary hover:bg-primary/90"
                           disabled={pendingCount === 0}
                         >
@@ -274,7 +318,7 @@ export function SessionControls({
                         <Button
                           variant="default"
                           size="sm"
-                          onClick={onResume}
+                          onClick={handleResume}
                           className="h-7 bg-primary hover:bg-primary/90"
                         >
                           <Play className="h-3 w-3 mr-1" />
@@ -284,7 +328,7 @@ export function SessionControls({
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={onStop}
+                          onClick={handleStop}
                           className="h-7 text-destructive hover:text-destructive"
                           disabled={runningCount === 0}
                         >
@@ -295,7 +339,7 @@ export function SessionControls({
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={onClearQueue}
+                        onClick={handleClear}
                         className="h-7 text-destructive hover:text-destructive"
                         disabled={runningCount > 0}
                       >
@@ -333,7 +377,7 @@ export function SessionControls({
             {sessionInitialized && (
               <div className="pt-4 border-t border-border">
                 <Button
-                  onClick={onReset}
+                  onClick={handleFinish}
                   disabled={isRunning}
                   variant="outline"
                   className="w-full"

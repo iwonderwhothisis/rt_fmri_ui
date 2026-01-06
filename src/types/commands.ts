@@ -16,8 +16,23 @@ export interface ActionConfig {
   command: string;
 }
 
+export interface ButtonConfig {
+  terminal?: 'murfi' | 'psychopy';
+  terminals?: ('murfi' | 'psychopy')[];
+  command?: string;
+}
+
+export interface ButtonDefaults {
+  terminal: 'murfi' | 'psychopy';
+  command: string;
+}
+
 export interface CommandsConfig {
   systems: Record<string, SystemConfig>;
   steps: Record<string, StepConfig>;
   actions?: Record<string, ActionConfig>;
+  buttons?: Record<string, ButtonConfig>;
+  defaults?: {
+    button?: ButtonDefaults;
+  };
 }

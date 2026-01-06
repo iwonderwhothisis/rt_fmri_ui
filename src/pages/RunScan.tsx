@@ -10,6 +10,7 @@ import { XTerminal, TerminalHandle } from '@/components/XTerminal';
 import { PsychoPyConfig, SessionConfig, SessionStepHistory, SessionStep, Session } from '@/types/session';
 import type { TerminalStatus } from '@/types/terminal';
 import type { CommandsConfig } from '@/types/commands';
+import { useTerminalCommand } from '@/contexts/TerminalCommandContext';
 import { sessionService } from '@/services/mockSessionService';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -30,6 +31,7 @@ export const sessionSteps: SessionStep[] = [
 
 export default function RunScan() {
   const navigate = useNavigate();
+  const { registerTerminal, unregisterTerminal, executeButtonCommand } = useTerminalCommand();
   const [sessionConfig, setSessionConfig] = useState<SessionConfig | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [sessionStartTime, setSessionStartTime] = useState<string | null>(null);
@@ -129,6 +131,21 @@ export default function RunScan() {
     fetchConfig();
   }, []);
 
+  // Cleanup terminal registrations when sessions become inactive
+  useEffect(() => {
+    if (!murfiSessionActive) {
+      unregisterTerminal('murfi');
+      murfiTerminalRef.current = null;
+    }
+  }, [murfiSessionActive, unregisterTerminal]);
+
+  useEffect(() => {
+    if (!psychopySessionActive) {
+      unregisterTerminal('psychopy');
+      psychopyTerminalRef.current = null;
+    }
+  }, [psychopySessionActive, unregisterTerminal]);
+
   // Helper function to send command to appropriate terminal
   const sendCommandToTerminal = useCallback((terminal: 'murfi' | 'psychopy', command: string) => {
     const terminalHandle = terminal === 'murfi' ? murfiTerminalRef.current : psychopyTerminalRef.current;
@@ -166,6 +183,9 @@ export default function RunScan() {
 
   const handleSetup = async () => {
     if (runningSteps.has('setup')) return;
+
+    // Execute button command
+    executeButtonCommand('runScan.setup', { participantId: sessionConfig?.participantId || '' });
 
     // Generate a unique history entry ID for tracking this specific execution
     const historyEntryId = `setup-${Date.now()}`;
@@ -838,7 +858,10 @@ export default function RunScan() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => setTerminalOpen(prev => !prev)}
+                  onClick={() => {
+                    setTerminalOpen(prev => !prev);
+                    executeButtonCommand('runScan.toggleTerminal');
+                  }}
                   className="gap-1 text-muted-foreground"
                 >
                   {terminalOpen ? 'Hide' : 'Show'}
@@ -860,6 +883,7 @@ export default function RunScan() {
                       onStatusChange={handleMurfiStatusChange}
                       onReady={(handle) => {
                         murfiTerminalRef.current = handle;
+                        registerTerminal('murfi', handle);
                       }}
                     />
                   </div>
@@ -874,6 +898,7 @@ export default function RunScan() {
                       onStatusChange={handlePsychoPyStatusChange}
                       onReady={(handle) => {
                         psychopyTerminalRef.current = handle;
+                        registerTerminal('psychopy', handle);
                       }}
                     />
                   </div>
