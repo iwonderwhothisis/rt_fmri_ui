@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { X, GripVertical, Loader2, CheckCircle2, AlertCircle, Clock } from 'lucide-react';
 import { SessionStep } from '@/types/session';
 import { cn } from '@/lib/utils';
+import { useButtonCommand } from '@/hooks/useButtonCommand';
 
 export interface QueueItem {
   id: string;
@@ -26,6 +27,8 @@ export function QueueItemCard({ item, onRemove }: QueueItemCardProps) {
     transition,
     isDragging,
   } = useSortable({ id: item.id });
+
+  const removeCmd = useButtonCommand('queue.remove');
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -112,6 +115,7 @@ export function QueueItemCard({ item, onRemove }: QueueItemCardProps) {
           onClick={(e) => {
             e.stopPropagation();
             onRemove(item.id);
+            removeCmd.execute({ stepName: formatStepName(item.step) });
           }}
           disabled={item.status === 'running'}
         >

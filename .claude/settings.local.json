@@ -9,7 +9,18 @@
       "Bash(npm install)",
       "Bash(npm run dev:*)",
       "Bash(npx tsc:*)",
-      "Bash(npm rebuild:*)"
+      "Bash(npm rebuild:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run build:server:*)",
+      "Bash(npm run:*)",
+      "Bash(git log --oneline --grep=\"terminal\\\\|TTY\\\\|pty\\\\|input\" -i -20)",
+      "Bash(git log --all --oneline --grep=\"TTY\\\\|line ending\\\\|carriage\" -i)",
+      "Bash(echo:*)",
+      "Bash(node -e:*)",
+      "Bash(npm ls:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nAdd YAML-based configurable commands and fix terminal compatibility\n\n- Add config/commands.yaml for mapping buttons/steps to bash commands\n- Create commandService.ts to load and serve command configuration\n- Add API endpoint GET /api/config/commands\n- Update XTerminal with sendCommand capability and local echo\n- Update RunScan.tsx to execute commands from config\n- Fix terminal compatibility with Node.js v25 \\(replace node-pty with child_process\\)\n- Add explicit WebSocket path /ws for stable connections\nEOF\n\\)\")",
+      "Bash(grep:*)",
+      "Bash(ls:*)"
     ]
   }
 }

@@ -72,3 +72,127 @@ actions:
       - murfi
       - psychopy
     command: "echo 'Stopping...'"
+
+# Default behavior for buttons not explicitly configured
+defaults:
+  button:
+    terminal: murfi
+    command: "echo 'Button ${buttonId} pressed'"
+
+# Button command configuration
+# Each button can have an optional command that runs IN ADDITION to its default behavior
+# terminal: murfi (default) or psychopy
+# command: bash command to execute (supports ${variable} substitution)
+buttons:
+  # Initialize Step buttons
+  initialize.startMurfi:
+    terminal: murfi
+    command: "echo 'Starting Murfi system...'"
+
+  initialize.startPsychoPy:
+    terminal: psychopy
+    command: "echo 'Starting PsychoPy system...'"
+
+  initialize.proceed:
+    terminal: murfi
+    command: "echo 'Proceeding to participant selection'"
+
+  # Participant Selector buttons
+  participant.addNew:
+    terminal: murfi
+    command: "echo 'Opening new participant form'"
+
+  participant.create:
+    terminal: murfi
+    command: "echo 'Creating participant: ${participantId}'"
+
+  participant.cancel:
+    terminal: murfi
+    command: "echo 'Cancelled participant creation'"
+
+  participant.select:
+    terminal: murfi
+    command: "echo 'Selected participant: ${participantId}'"
+
+  # RunScan buttons
+  runScan.setup:
+    terminal: murfi
+    command: "echo 'Running setup for participant ${participantId}'"
+
+  runScan.toggleTerminal:
+    terminal: murfi
+    command: "echo 'Terminal panel toggled'"
+
+  # Session Controls buttons
+  session.start:
+    terminal: murfi
+    command: "echo 'Starting session for participant ${participantId}'"
+
+  session.reset:
+    terminal: murfi
+    command: "echo 'Session reset'"
+
+  session.startQueue:
+    terminal: murfi
+    command: "echo 'Starting execution queue'"
+
+  session.resume:
+    terminal: murfi
+    command: "echo 'Resuming execution queue'"
+
+  session.stop:
+    terminals:
+      - murfi
+      - psychopy
+    command: "echo 'STOP signal sent'"
+
+  session.clear:
+    terminal: murfi
+    command: "echo 'Queue cleared'"
+
+  session.finish:
+    terminal: murfi
+    command: "echo 'Session completed'"
+
+  # Queue Item buttons
+  queue.remove:
+    terminal: murfi
+    command: "echo 'Removed ${stepName} from queue'"
+
+  # Step Pipeline buttons
+  stepPipeline.toggleHistory:
+    terminal: murfi
+    command: "echo 'Toggled execution history'"
+
+  # Workflow Stepper buttons
+  workflow.stepClick:
+    terminal: murfi
+    command: "echo 'Navigated to workflow step: ${stepId}'"
+
+  # Session Card buttons
+  sessionCard.viewDetails:
+    terminal: murfi
+    command: "echo 'Viewing session details: ${sessionId}'"
+
+  # Session Detail buttons
+  sessionDetail.back:
+    terminal: murfi
+    command: "echo 'Navigating back'"
+
+  sessionDetail.exportJson:
+    terminal: murfi
+    command: "echo 'Exporting session ${sessionId} as JSON'"
+
+  sessionDetail.exportCsv:
+    terminal: murfi
+    command: "echo 'Exporting session ${sessionId} as CSV'"
+
+  # Previous Scans buttons
+  previousScans.compare:
+    terminal: murfi
+    command: "echo 'Comparing selected sessions'"
+
+  # Navigation buttons
+  navigation.help:
+    terminal: murfi
+    command: "echo 'Help requested'"

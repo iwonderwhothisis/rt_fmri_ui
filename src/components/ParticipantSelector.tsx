@@ -28,6 +28,7 @@ import { Participant } from '@/types/session';
 import { sessionService } from '@/services/mockSessionService';
 import { UserPlus, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useButtonCommand } from '@/hooks/useButtonCommand';
 
 interface ParticipantSelectorProps {
   onParticipantSelect: (participantId: string, isNew?: boolean) => void;
@@ -41,6 +42,11 @@ export function ParticipantSelector({ onParticipantSelect, selectedParticipantId
   const [showNewForm, setShowNewForm] = useState(false);
   const [newParticipantId, setNewParticipantId] = useState('');
   const [creating, setCreating] = useState(false);
+
+  const addNewCmd = useButtonCommand('participant.addNew');
+  const createCmd = useButtonCommand('participant.create');
+  const cancelCmd = useButtonCommand('participant.cancel');
+  const selectCmd = useButtonCommand('participant.select');
 
   useEffect(() => {
     loadParticipants();
@@ -89,6 +95,7 @@ export function ParticipantSelector({ onParticipantSelect, selectedParticipantId
       onParticipantSelect(created.id, true);
       setShowNewForm(false);
       setNewParticipantId('');
+      createCmd.execute({ participantId: created.id });
       toast.success('Participant created', {
         description: `Participant ${created.id} has been added.`,
       });
@@ -104,6 +111,18 @@ export function ParticipantSelector({ onParticipantSelect, selectedParticipantId
   // Handle selection from dropdown - explicitly pass isNew=false
   const handleSelectChange = (value: string) => {
     onParticipantSelect(value, false);
+    selectCmd.execute({ participantId: value });
+  };
+
+  const handleAddNew = () => {
+    setShowNewForm(true);
+    addNewCmd.execute();
+  };
+
+  const handleCancel = () => {
+    setShowNewForm(false);
+    setNewParticipantId('');
+    cancelCmd.execute();
   };
 
   if (inline) {
@@ -165,10 +184,7 @@ export function ParticipantSelector({ onParticipantSelect, selectedParticipantId
                 <DialogFooter>
                   <Button
                     variant="outline"
-                    onClick={() => {
-                      setShowNewForm(false);
-                      setNewParticipantId('');
-                    }}
+                    onClick={handleCancel}
                     className="border-border"
                   >
                     Cancel
@@ -220,7 +236,7 @@ export function ParticipantSelector({ onParticipantSelect, selectedParticipantId
             <Button
               variant="outline"
               className="w-full border-border hover:bg-secondary"
-              onClick={() => setShowNewForm(true)}
+              onClick={handleAddNew}
             >
               <UserPlus className="mr-2 h-4 w-4" />
               Add New Participant
@@ -249,10 +265,7 @@ export function ParticipantSelector({ onParticipantSelect, selectedParticipantId
                 </Button>
                 <Button
                   variant="outline"
-                  onClick={() => {
-                    setShowNewForm(false);
-                    setNewParticipantId('');
-                  }}
+                  onClick={handleCancel}
                   className="border-border"
                 >
                   Cancel
