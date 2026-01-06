@@ -15,8 +15,8 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, CheckCircle2, ChevronDown, Loader2, Terminal } from 'lucide-react';
 import { QueueItem } from '@/components/ExecutionQueue';
-import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible';
 import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
 export const sessionSteps: SessionStep[] = [
   '2vol',
@@ -815,74 +815,72 @@ export default function RunScan() {
           </div>
         )}
 
-        {/* Collapsible terminals card - show when any session is active */}
+        {/* Terminals card - show when any session is active */}
+        {/* Terminals persist when hidden (CSS visibility) to maintain WebSocket connections */}
         {(murfiSessionActive || psychopySessionActive) && (
-          <Collapsible open={terminalOpen} onOpenChange={setTerminalOpen}>
-            <Card className="p-4 md:p-5 bg-card border-border">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
-                    <Terminal className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-foreground">System terminals</p>
-                  </div>
+          <Card className="p-4 md:p-5 bg-card border-border">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+                  <Terminal className="h-5 w-5" />
                 </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="text-[11px] font-medium">
-                    Murfi · {murfiTerminalStatus === 'connected' ? 'Running' : murfiTerminalStatus === 'connecting' ? 'Connecting...' : 'Disconnected'}
-                  </Badge>
-                  <Badge variant="outline" className="text-[11px] font-medium">
-                    PsychoPy · {psychopyTerminalStatus === 'connected' ? 'Running' : psychopyTerminalStatus === 'connecting' ? 'Connecting...' : 'Disconnected'}
-                  </Badge>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setTerminalOpen(prev => !prev)}
-                    className="gap-1 text-muted-foreground"
-                  >
-                    {terminalOpen ? 'Hide' : 'Show'}
-                    <ChevronDown
-                      className={`h-4 w-4 transition-transform ${terminalOpen ? 'rotate-180' : ''}`}
-                    />
-                  </Button>
+                <div>
+                  <p className="text-sm font-semibold text-foreground">System terminals</p>
                 </div>
               </div>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="text-[11px] font-medium">
+                  Murfi · {murfiTerminalStatus === 'connected' ? 'Running' : murfiTerminalStatus === 'connecting' ? 'Connecting...' : 'Disconnected'}
+                </Badge>
+                <Badge variant="outline" className="text-[11px] font-medium">
+                  PsychoPy · {psychopyTerminalStatus === 'connected' ? 'Running' : psychopyTerminalStatus === 'connecting' ? 'Connecting...' : 'Disconnected'}
+                </Badge>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setTerminalOpen(prev => !prev)}
+                  className="gap-1 text-muted-foreground"
+                >
+                  {terminalOpen ? 'Hide' : 'Show'}
+                  <ChevronDown
+                    className={`h-4 w-4 transition-transform ${terminalOpen ? 'rotate-180' : ''}`}
+                  />
+                </Button>
+              </div>
+            </div>
 
-              <CollapsibleContent className="mt-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {murfiSessionActive && (
-                    <div className="space-y-2">
-                      <div className="text-xs font-semibold text-foreground">Murfi</div>
-                      <div className="rounded-lg border border-border/60 overflow-hidden" style={{ height: '250px' }}>
-                        <XTerminal
-                          sessionId="murfi"
-                          onStatusChange={handleMurfiStatusChange}
-                          onReady={(handle) => {
-                            murfiTerminalRef.current = handle;
-                          }}
-                        />
-                      </div>
-                    </div>
-                  )}
-                  {psychopySessionActive && (
-                    <div className="space-y-2">
-                      <div className="text-xs font-semibold text-foreground">PsychoPy</div>
-                      <div className="rounded-lg border border-border/60 overflow-hidden" style={{ height: '250px' }}>
-                        <XTerminal
-                          sessionId="psychopy"
-                          onStatusChange={handlePsychoPyStatusChange}
-                          onReady={(handle) => {
-                            psychopyTerminalRef.current = handle;
-                          }}
-                        />
-                      </div>
-                    </div>
-                  )}
+            {/* Use CSS visibility to hide/show - keeps terminals mounted and WebSocket connections alive */}
+            <div className={cn("mt-4 grid grid-cols-1 md:grid-cols-2 gap-4", !terminalOpen && "hidden")}>
+              {murfiSessionActive && (
+                <div className="space-y-2">
+                  <div className="text-xs font-semibold text-foreground">Murfi</div>
+                  <div className="rounded-lg border border-border/60 overflow-hidden" style={{ height: '250px' }}>
+                    <XTerminal
+                      sessionId="murfi"
+                      onStatusChange={handleMurfiStatusChange}
+                      onReady={(handle) => {
+                        murfiTerminalRef.current = handle;
+                      }}
+                    />
+                  </div>
                 </div>
-              </CollapsibleContent>
-            </Card>
-          </Collapsible>
+              )}
+              {psychopySessionActive && (
+                <div className="space-y-2">
+                  <div className="text-xs font-semibold text-foreground">PsychoPy</div>
+                  <div className="rounded-lg border border-border/60 overflow-hidden" style={{ height: '250px' }}>
+                    <XTerminal
+                      sessionId="psychopy"
+                      onStatusChange={handlePsychoPyStatusChange}
+                      onReady={(handle) => {
+                        psychopyTerminalRef.current = handle;
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          </Card>
         )}
       </div>
     </div>
