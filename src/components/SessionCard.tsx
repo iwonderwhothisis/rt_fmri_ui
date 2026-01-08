@@ -5,6 +5,7 @@ import { Calendar, Clock, User, CheckCircle2, AlertCircle, Play, ArrowRight } fr
 import { Session } from '@/types/session';
 import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
+import { useButtonCommand } from '@/hooks/useButtonCommand';
 
 interface SessionCardProps {
   session: Session;
@@ -14,6 +15,9 @@ interface SessionCardProps {
 
 export function SessionCard({ session, isSelected, onSelect }: SessionCardProps) {
   const navigate = useNavigate();
+  const cardClickCmd = useButtonCommand('sessionCard.click');
+  const viewDetailsCmd = useButtonCommand('sessionCard.viewDetails');
+  const selectCmd = useButtonCommand('sessionCard.select');
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -83,7 +87,10 @@ export function SessionCard({ session, isSelected, onSelect }: SessionCardProps)
         'p-5 bg-card border-border hover:border-primary/50 transition-all duration-300 cursor-pointer group',
         isSelected && 'ring-2 ring-primary border-primary'
       )}
-      onClick={() => navigate(`/session/${session.id}`)}
+      onClick={() => {
+        navigate(`/session/${session.id}`);
+        cardClickCmd.execute({ sessionId: session.id });
+      }}
     >
       <div className="flex items-start justify-between mb-4">
         <div className="flex-1 min-w-0">
@@ -112,6 +119,7 @@ export function SessionCard({ session, isSelected, onSelect }: SessionCardProps)
             onChange={(e) => {
               e.stopPropagation();
               onSelect(session.id, e.target.checked);
+              selectCmd.execute({ sessionId: session.id, selected: String(e.target.checked) });
             }}
             onClick={(e) => e.stopPropagation()}
             className="w-4 h-4 rounded border-border text-primary focus:ring-primary"
@@ -168,6 +176,7 @@ export function SessionCard({ session, isSelected, onSelect }: SessionCardProps)
           onClick={(e) => {
             e.stopPropagation();
             navigate(`/session/${session.id}`);
+            viewDetailsCmd.execute({ sessionId: session.id });
           }}
         >
           View Details

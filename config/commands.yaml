@@ -193,6 +193,23 @@ buttons:
     command: "echo 'Comparing selected sessions'"
 
   # Navigation buttons
-  navigation.help:
+  nav.runScan:
+    terminal: murfi
+    command: "echo 'Navigated to Run Scan'"
+
+  nav.previousScans:
+    terminal: murfi
+    command: "echo 'Navigated to Previous Scans'"
+
+  nav.help:
     terminal: murfi
     command: "echo 'Help requested'"
+
+  # Session Card buttons
+  sessionCard.click:
+    terminal: murfi
+    command: "echo 'Clicked session card: ${sessionId}'"
+
+  sessionCard.select:
+    terminal: murfi
+    command: "echo 'Session ${sessionId} selection changed to: ${selected}'"
