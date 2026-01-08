@@ -6,8 +6,13 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { useButtonCommand } from '@/hooks/useButtonCommand';
 
 export function Navigation() {
+  const runScanNavCmd = useButtonCommand('nav.runScan');
+  const previousScansNavCmd = useButtonCommand('nav.previousScans');
+  const helpCmd = useButtonCommand('nav.help');
+
   return (
     <>
       <nav className="bg-card border-b border-border sticky top-0 z-50 backdrop-blur-sm bg-card/95">
@@ -28,6 +33,7 @@ export function Navigation() {
                   end
                   className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 text-muted-foreground hover:text-foreground hover:bg-secondary/50 active:scale-95"
                   activeClassName="bg-primary/10 text-primary hover:bg-primary/10 shadow-sm"
+                  onClick={() => runScanNavCmd.execute()}
                 >
                   <Activity className="h-4 w-4" />
                   <span className="hidden sm:inline">Run Scan</span>
@@ -38,6 +44,7 @@ export function Navigation() {
                   to="/previous-scans"
                   className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 text-muted-foreground hover:text-foreground hover:bg-secondary/50 active:scale-95"
                   activeClassName="bg-primary/10 text-primary hover:bg-primary/10 shadow-sm"
+                  onClick={() => previousScansNavCmd.execute()}
                 >
                   <History className="h-4 w-4" />
                   <span className="hidden sm:inline">Previous Scans</span>
@@ -49,7 +56,10 @@ export function Navigation() {
             <div className="flex items-center gap-3">
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <button className="p-2 rounded-lg hover:bg-secondary/50 transition-colors text-muted-foreground hover:text-foreground">
+                  <button
+                    className="p-2 rounded-lg hover:bg-secondary/50 transition-colors text-muted-foreground hover:text-foreground"
+                    onClick={() => helpCmd.execute()}
+                  >
                     <HelpCircle className="h-4 w-4" />
                     <span className="sr-only">Help</span>
                   </button>

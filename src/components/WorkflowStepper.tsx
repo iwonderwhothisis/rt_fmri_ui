@@ -1,5 +1,6 @@
 import { Check, Circle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useButtonCommand } from '@/hooks/useButtonCommand';
 
 export type WorkflowStep = 'initialize' | 'participant' | 'configure' | 'execute';
 
@@ -17,6 +18,13 @@ const steps: { id: WorkflowStep; label: string; description: string }[] = [
 ];
 
 export function WorkflowStepper({ currentStep, completedSteps, onStepClick }: WorkflowStepperProps) {
+  const stepClickCmd = useButtonCommand('workflow.stepClick');
+
+  const handleStepClick = (stepId: WorkflowStep) => {
+    onStepClick?.(stepId);
+    stepClickCmd.execute({ stepId });
+  };
+
   const getStepStatus = (stepId: WorkflowStep) => {
     if (completedSteps.includes(stepId)) return 'completed';
     if (currentStep === stepId) return 'current';
@@ -65,7 +73,7 @@ export function WorkflowStepper({ currentStep, completedSteps, onStepClick }: Wo
             return (
               <div key={step.id} className="flex flex-col items-center flex-1">
                 <button
-                  onClick={() => isClickable && onStepClick?.(step.id)}
+                  onClick={() => isClickable && handleStepClick(step.id)}
                   disabled={!isClickable}
                   className={cn(
                     'relative flex items-center justify-center w-10 h-10 rounded-full border-2 transition-all duration-300 flex-shrink-0',

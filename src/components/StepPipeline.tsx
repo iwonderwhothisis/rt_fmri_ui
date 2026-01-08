@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { CheckCircle2, Loader2, XCircle, Circle, ArrowRight, ChevronDown, ChevronUp, Clock } from 'lucide-react';
 import { SessionStep, SessionStepHistory } from '@/types/session';
 import { cn } from '@/lib/utils';
+import { useButtonCommand } from '@/hooks/useButtonCommand';
 
 interface StepPipelineProps {
   steps: SessionStep[];
@@ -163,6 +164,13 @@ function StepPipelineItem({
   getStepBadgeColor,
   isLast,
 }: StepPipelineItemProps) {
+  const toggleHistoryCmd = useButtonCommand('stepPipeline.toggleHistory');
+
+  const handleToggleExpand = () => {
+    onToggleExpand();
+    toggleHistoryCmd.execute({ stepName: formatStepName(step) });
+  };
+
   const formatTimestamp = (timestamp: string) => {
     return new Date(timestamp).toLocaleTimeString('en-US', {
       hour: '2-digit',
@@ -234,7 +242,7 @@ function StepPipelineItem({
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={onToggleExpand}
+                    onClick={handleToggleExpand}
                     className="text-xs text-muted-foreground hover:text-foreground"
                   >
                     {isExpanded ? (
