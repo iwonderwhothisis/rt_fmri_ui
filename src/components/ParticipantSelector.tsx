@@ -75,6 +75,13 @@ export function ParticipantSelector({ onParticipantSelect, selectedParticipantId
       return;
     }
 
+    if (!/^\d+$/.test(trimmedId)) {
+      toast.error('Participant ID must be numeric', {
+        description: 'Use digits only (e.g., 001).',
+      });
+      return;
+    }
+
     // Check if ID already exists
     if (participants.some(p => p.id === trimmedId)) {
       toast.error('Participant ID already exists', {
@@ -173,7 +180,9 @@ export function ParticipantSelector({ onParticipantSelect, selectedParticipantId
                     <Label htmlFor="newParticipantId">Participant ID</Label>
                     <Input
                       id="newParticipantId"
-                      type="number"
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
                       value={newParticipantId}
                       onChange={e => setNewParticipantId(e.target.value)}
                       placeholder="Enter Participant ID (e.g., 001)"
@@ -247,7 +256,9 @@ export function ParticipantSelector({ onParticipantSelect, selectedParticipantId
                 <Label htmlFor="newParticipantId">Participant ID</Label>
                 <Input
                   id="newParticipantId"
-                  type="number"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   value={newParticipantId}
                   onChange={e => setNewParticipantId(e.target.value)}
                   placeholder="Enter Participant ID (e.g., 001)"

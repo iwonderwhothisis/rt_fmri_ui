@@ -48,8 +48,9 @@ export default function SessionComparison() {
     if (values.length < 2) return null;
     const first = values[0];
     const last = values[values.length - 1];
+    if (!Number.isFinite(first) || first === 0) return null;
     const change = ((last - first) / first) * 100;
-    return change;
+    return Number.isFinite(change) ? change : null;
   };
 
   if (loading) {
@@ -79,9 +80,11 @@ export default function SessionComparison() {
   }
 
   const durations = sessions.map(s => calculateDuration(s.startTime, s.endTime));
-  const completionRates = sessions.map(
-    s => (s.stepHistory.filter(st => st.status === 'completed').length / s.stepHistory.length) * 100
-  );
+  const completionRates = sessions.map((s) => {
+    const total = s.stepHistory.length;
+    if (total === 0) return 0;
+    return (s.stepHistory.filter(st => st.status === 'completed').length / total) * 100;
+  });
   const durationChange = compareMetric(durations);
   const completionChange = compareMetric(completionRates);
 

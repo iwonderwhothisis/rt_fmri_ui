@@ -18,6 +18,7 @@ import { ArrowRight, CheckCircle2, ChevronDown, Loader2, Terminal } from 'lucide
 import { QueueItem } from '@/components/ExecutionQueue';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { buildApiUrl } from '@/lib/apiBase';
 
 export const sessionSteps: SessionStep[] = [
   '2vol',
@@ -116,7 +117,7 @@ export default function RunScan() {
   useEffect(() => {
     const fetchConfig = async () => {
       try {
-        const response = await fetch('/api/config/commands');
+        const response = await fetch(buildApiUrl('/api/config/commands'));
         if (response.ok) {
           const config = await response.json();
           setCommandsConfig(config);
@@ -164,6 +165,37 @@ export default function RunScan() {
       result = result.replace(new RegExp(`\\$\\{${key}\\}`, 'g'), value);
     }
     return result;
+  }, []);
+
+  const markHistoryFailed = useCallback((entryId: string, step: SessionStep, message: string) => {
+    setStepHistory(prev => {
+      const hasEntry = prev.some(
+        (s) => (s as SessionStepHistory & { _entryId?: string })._entryId === entryId
+      );
+
+      if (!hasEntry) {
+        return [
+          ...prev,
+          {
+            step,
+            status: 'failed',
+            timestamp: new Date().toISOString(),
+            message,
+          },
+        ];
+      }
+
+      return prev.map(s => {
+        const entry = s as SessionStepHistory & { _entryId?: string };
+        if (entry._entryId !== entryId) return s;
+        return {
+          ...entry,
+          status: 'failed' as const,
+          message,
+          duration: entry.duration ?? (Date.now() - new Date(entry.timestamp).getTime()) / 1000,
+        };
+      });
+    });
   }, []);
 
   const handleParticipantSelect = (participantId: string, isNewParticipant: boolean = false) => {
@@ -239,6 +271,7 @@ export default function RunScan() {
       setSetupCompleted(true);
       setManualWorkflowStep('configure');
     } catch (error) {
+      markHistoryFailed(historyEntryId, 'setup', 'Setup failed');
       setRunningSteps(prev => {
         const next = new Set(prev);
         next.delete('setup');
@@ -312,6 +345,7 @@ export default function RunScan() {
       });
 
     } catch (error) {
+      markHistoryFailed(historyEntryId, step, 'Step failed');
       setRunningSteps(prev => {
         const next = new Set(prev);
         next.delete(step);
@@ -515,6 +549,7 @@ export default function RunScan() {
       });
 
     } catch (error) {
+      markHistoryFailed(historyEntryId, item.step, 'Step failed');
       // Mark as failed
       setExecutionQueue(prev =>
         prev.map(i =>
@@ -529,7 +564,7 @@ export default function RunScan() {
       });
       setIsRunning(false);
     }
-  }, [commandsConfig, sessionConfig?.participantId, substituteVariables, sendCommandToTerminal]);
+  }, [commandsConfig, sessionConfig?.participantId, substituteVariables, sendCommandToTerminal, markHistoryFailed]);
 
   // Auto-execution logic
   useEffect(() => {

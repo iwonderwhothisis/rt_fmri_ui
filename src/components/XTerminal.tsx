@@ -4,6 +4,7 @@ import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import '@xterm/xterm/css/xterm.css';
 import { cn } from '@/lib/utils';
+import { getWsBaseUrl } from '@/lib/apiBase';
 import type { TerminalStatus, ServerMessage, ClientMessage } from '@/types/terminal';
 
 export interface TerminalHandle {
@@ -80,7 +81,9 @@ export function XTerminal({
 
     // Build WebSocket URL
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = new URL(`${protocol}//${window.location.host}/ws`);
+    const defaultBase = `${protocol}//${window.location.host}`;
+    const wsBase = getWsBaseUrl() || defaultBase;
+    const wsUrl = new URL(`${wsBase}/ws`);
     wsUrl.searchParams.set('sessionId', sessionId);
     if (initialCommand) {
       wsUrl.searchParams.set('initialCommand', initialCommand);
