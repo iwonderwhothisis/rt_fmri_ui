@@ -7,6 +7,9 @@ import { loadCommandsConfig, getSystemCommand } from './commandService.js';
 
 const app = express();
 const PORT = 3001;
+const HOST = process.env.TERMINAL_HOST || '127.0.0.1';
+const AUTH_TOKEN = process.env.TERMINAL_AUTH_TOKEN || '';
+const ALLOW_QUERY_COMMANDS = process.env.ALLOW_QUERY_COMMANDS === 'true';
 
 app.use(cors());
 app.use(express.json());
@@ -39,23 +42,52 @@ app.get('/api/config/commands', (_req, res) => {
   }
 });
 
+const getAllowedSessionIds = () => {
+  const config = loadCommandsConfig();
+  const systemIds = Object.keys(config.systems || {});
+  const envAllowed = (process.env.ALLOWED_SESSIONS || '')
+    .split(',')
+    .map((id) => id.trim())
+    .filter(Boolean);
+  return new Set([...systemIds, ...envAllowed]);
+};
+
+const isAuthorized = (token: string | null) => {
+  if (!AUTH_TOKEN) return true;
+  return token === AUTH_TOKEN;
+};
+
 // WebSocket connection handler
 wss.on('connection', (ws, req) => {
   const url = new URL(req.url || '', `http://localhost:${PORT}`);
   const sessionId = url.searchParams.get('sessionId');
-  // Get initial command from URL params or look up from config
-  let initialCommand = url.searchParams.get('initialCommand');
-  if (!initialCommand && sessionId) {
-    // Try to get start command from config for this system
-    initialCommand = getSystemCommand(sessionId);
-    if (initialCommand) {
-      console.log(`[Terminal] Using config start command for ${sessionId}`);
-    }
-  }
-
+  const token = url.searchParams.get('token');
+  const allowedSessionIds = getAllowedSessionIds();
   if (!sessionId) {
     ws.close(1008, 'Session ID required');
     return;
+  }
+
+  if (!isAuthorized(token)) {
+    ws.close(1008, 'Unauthorized');
+    return;
+  }
+
+  if (!allowedSessionIds.has(sessionId)) {
+    ws.close(1008, 'Session not allowed');
+    return;
+  }
+
+  // Get initial command from config, unless explicitly allowed via env
+  let initialCommand: string | null = getSystemCommand(sessionId);
+  if (initialCommand) {
+    console.log(`[Terminal] Using config start command for ${sessionId}`);
+  }
+
+  const queryInitialCommand = url.searchParams.get('initialCommand');
+  if (ALLOW_QUERY_COMMANDS && queryInitialCommand) {
+    initialCommand = queryInitialCommand;
+    console.log(`[Terminal] Using query initial command for ${sessionId}`);
   }
 
   console.log(`[Terminal] New connection for session: ${sessionId}`);
@@ -157,7 +189,7 @@ process.on('SIGTERM', () => {
   });
 });
 
-server.listen(PORT, () => {
-  console.log(`[Terminal] Server running on http://localhost:${PORT}`);
-  console.log(`[Terminal] WebSocket available at ws://localhost:${PORT}`);
+server.listen(PORT, HOST, () => {
+  console.log(`[Terminal] Server running on http://${HOST}:${PORT}`);
+  console.log(`[Terminal] WebSocket available at ws://${HOST}:${PORT}`);
 });

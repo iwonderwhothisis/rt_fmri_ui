@@ -1,6 +1,7 @@
 import { createContext, useContext, useCallback, useRef, useState, useEffect, ReactNode } from 'react';
 import type { TerminalHandle } from '@/components/XTerminal';
 import type { CommandsConfig } from '@/types/commands';
+import { buildApiUrl } from '@/lib/apiBase';
 
 interface TerminalCommandContextValue {
   registerTerminal: (id: 'murfi' | 'psychopy', handle: TerminalHandle) => void;
@@ -23,7 +24,7 @@ export function TerminalCommandProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const fetchConfig = async () => {
       try {
-        const response = await fetch('/api/config/commands');
+        const response = await fetch(buildApiUrl('/api/config/commands'));
         if (response.ok) {
           const data = await response.json();
           setConfig(data);

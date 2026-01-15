@@ -36,6 +36,7 @@ export class TerminalManager {
           FORCE_COLOR: '1',
         },
         stdio: ['pipe', 'pipe', 'pipe'],
+        detached: true,
       });
     } catch (error) {
       console.error(`[TerminalManager] Failed to spawn shell:`, error);
@@ -107,7 +108,7 @@ export class TerminalManager {
   destroy(id: string): void {
     const session = this.sessions.get(id);
     if (session) {
-      session.process.kill();
+      this.killProcessGroup(session.process);
       this.sessions.delete(id);
     }
   }
@@ -124,5 +125,28 @@ export class TerminalManager {
 
   getSessionIds(): string[] {
     return Array.from(this.sessions.keys());
+  }
+
+  private killProcessGroup(child: ChildProcess): void {
+    const pid = child.pid;
+    if (!pid) {
+      child.kill();
+      return;
+    }
+
+    try {
+      if (process.platform !== 'win32') {
+        process.kill(-pid, 'SIGTERM');
+      } else {
+        child.kill();
+      }
+    } catch (error) {
+      console.error('[TerminalManager] Failed to terminate process group:', error);
+      try {
+        child.kill();
+      } catch (fallbackError) {
+        console.error('[TerminalManager] Failed to terminate process:', fallbackError);
+      }
+    }
   }
 }
