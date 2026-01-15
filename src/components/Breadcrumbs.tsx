@@ -7,12 +7,10 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
-import { Home, Activity, History, Brain, GitCompare, type LucideIcon } from 'lucide-react';
+import { Home, Activity, Brain, type LucideIcon } from 'lucide-react';
 
 const routeMap: Record<string, { label: string; icon: LucideIcon }> = {
   '/': { label: 'Run Scan', icon: Activity },
-  '/previous-scans': { label: 'Previous Scans', icon: History },
-  '/session-comparison': { label: 'Session Comparison', icon: GitCompare },
 };
 
 export function Breadcrumbs() {
@@ -67,9 +65,9 @@ export function Breadcrumbs() {
           <BreadcrumbSeparator key={`sep-${index}`} />,
           <BreadcrumbItem key={currentPath}>
             <BreadcrumbLink asChild>
-              <Link to="/previous-scans" className="flex items-center gap-1.5">
-                <History className="h-4 w-4" />
-                <span>Previous Scans</span>
+              <Link to="/" className="flex items-center gap-1.5">
+                <Activity className="h-4 w-4" />
+                <span>Run Scan</span>
               </Link>
             </BreadcrumbLink>
           </BreadcrumbItem>,
