@@ -124,20 +124,18 @@ export default function SessionDetail() {
       <div className="max-w-[1800px] mx-auto space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
+          <div>
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+              Session {session.id}
+            </h1>
+            <p className="text-muted-foreground mt-1">Detailed analysis and reports</p>
+          </div>
+
+          <div className="flex gap-2">
             <Button variant="ghost" onClick={() => navigate('/')}>
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to Run Scan
             </Button>
-            <div>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                Session {session.id}
-              </h1>
-              <p className="text-muted-foreground mt-1">Detailed analysis and reports</p>
-            </div>
-          </div>
-
-          <div className="flex gap-2">
             <Button variant="outline" onClick={() => handleExport('json')} className="border-border">
               <Download className="mr-2 h-4 w-4" />
               <span className="hidden sm:inline">Export JSON</span>

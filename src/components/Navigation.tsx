@@ -56,14 +56,6 @@ export function Navigation() {
                   <p>Need help? Check the documentation</p>
                 </TooltipContent>
               </Tooltip>
-
-              <div className="flex items-center gap-2 text-xs">
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-success/10 border border-success/20">
-                  <div className="h-2 w-2 rounded-full bg-success animate-pulse" />
-                  <span className="text-success font-medium hidden md:inline">Systems Online</span>
-                  <span className="text-success font-medium md:hidden">Online</span>
-                </div>
-              </div>
             </div>
           </div>
         </div>
