@@ -1,6 +1,6 @@
 import { NavLink } from '@/components/NavLink';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
-import { Activity, History, Brain, HelpCircle } from 'lucide-react';
+import { Activity, Brain, HelpCircle } from 'lucide-react';
 import {
   Tooltip,
   TooltipContent,
@@ -10,7 +10,6 @@ import { useButtonCommand } from '@/hooks/useButtonCommand';
 
 export function Navigation() {
   const runScanNavCmd = useButtonCommand('nav.runScan');
-  const previousScansNavCmd = useButtonCommand('nav.previousScans');
   const helpCmd = useButtonCommand('nav.help');
 
   return (
@@ -38,17 +37,6 @@ export function Navigation() {
                   <Activity className="h-4 w-4" />
                   <span className="hidden sm:inline">Run Scan</span>
                   <span className="sm:hidden">Run</span>
-                </NavLink>
-
-                <NavLink
-                  to="/previous-scans"
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 text-muted-foreground hover:text-foreground hover:bg-secondary/50 active:scale-95"
-                  activeClassName="bg-primary/10 text-primary hover:bg-primary/10 shadow-sm"
-                  onClick={() => previousScansNavCmd.execute()}
-                >
-                  <History className="h-4 w-4" />
-                  <span className="hidden sm:inline">Previous Scans</span>
-                  <span className="sm:hidden">History</span>
                 </NavLink>
               </div>
             </div>

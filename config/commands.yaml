@@ -187,19 +187,10 @@ buttons:
     terminal: murfi
     command: "echo 'Exporting session ${sessionId} as CSV'"
 
-  # Previous Scans buttons
-  previousScans.compare:
-    terminal: murfi
-    command: "echo 'Comparing selected sessions'"
-
   # Navigation buttons
   nav.runScan:
     terminal: murfi
     command: "echo 'Navigated to Run Scan'"
-
-  nav.previousScans:
-    terminal: murfi
-    command: "echo 'Navigated to Previous Scans'"
 
   nav.help:
     terminal: murfi
