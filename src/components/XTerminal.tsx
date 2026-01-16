@@ -7,8 +7,13 @@ import { cn } from '@/lib/utils';
 import { getWsBaseUrl } from '@/lib/apiBase';
 import type { TerminalStatus, ServerMessage, ClientMessage } from '@/types/terminal';
 
+export interface CommandResult {
+  exitCode: number;
+}
+
 export interface TerminalHandle {
   sendCommand: (command: string) => void;
+  executeCommand: (command: string, timeoutMs?: number) => Promise<CommandResult>;
 }
 
 interface XTerminalProps {
@@ -43,6 +48,13 @@ export function XTerminal({
   onStatusChangeRef.current = onStatusChange;
   onExitRef.current = onExit;
   onReadyRef.current = onReady;
+
+  // Track pending commands waiting for completion
+  const pendingCommandsRef = useRef<Map<string, {
+    resolve: (result: CommandResult) => void;
+    reject: (error: Error) => void;
+    timeoutId: NodeJS.Timeout;
+  }>>(new Map());
 
   useEffect(() => {
     if (!terminalRef.current || disabled) return;
@@ -96,13 +108,49 @@ export function XTerminal({
 
     // Create terminal handle for sending commands
     const handle: TerminalHandle = {
+      // Fire-and-forget command (legacy behavior)
       sendCommand: (command: string) => {
         if (ws.readyState === WebSocket.OPEN) {
-          const msg = { type: 'command', sessionId, command };
+          const msg: ClientMessage = { type: 'command', sessionId, command };
           ws.send(JSON.stringify(msg));
         } else {
           console.warn('[XTerminal] Cannot send command - WebSocket not connected');
         }
+      },
+
+      // Promise-based command execution with completion tracking
+      executeCommand: (command: string, timeoutMs: number = 5 * 60 * 1000): Promise<CommandResult> => {
+        return new Promise((resolve, reject) => {
+          if (ws.readyState !== WebSocket.OPEN) {
+            reject(new Error('WebSocket not connected'));
+            return;
+          }
+
+          // Generate unique command ID
+          const commandId = crypto.randomUUID();
+
+          // Set timeout for command
+          const timeoutId = setTimeout(() => {
+            if (pendingCommandsRef.current.has(commandId)) {
+              pendingCommandsRef.current.delete(commandId);
+              reject(new Error(`Command timed out after ${timeoutMs}ms`));
+            }
+          }, timeoutMs);
+
+          // Store pending command
+          pendingCommandsRef.current.set(commandId, { resolve, reject, timeoutId });
+
+          // Send command with tracking ID
+          const msg: ClientMessage = {
+            type: 'command',
+            sessionId,
+            command,
+            commandId
+          };
+          ws.send(JSON.stringify(msg));
+
+          console.log(`[XTerminal] Sent tracked command ${commandId}: ${command}`);
+        });
       },
     };
 
@@ -125,10 +173,20 @@ export function XTerminal({
     ws.onmessage = (event) => {
       try {
         const msg: ServerMessage = JSON.parse(event.data);
+
         if (msg.type === 'output' && msg.data) {
           term.write(msg.data);
         } else if (msg.type === 'exit') {
           onExitRef.current?.(msg.exitCode ?? 0);
+        } else if (msg.type === 'command-complete' && msg.commandId) {
+          // Resolve pending command promise
+          const pending = pendingCommandsRef.current.get(msg.commandId);
+          if (pending) {
+            clearTimeout(pending.timeoutId);
+            pendingCommandsRef.current.delete(msg.commandId);
+            pending.resolve({ exitCode: msg.exitCode ?? 0 });
+            console.log(`[XTerminal] Command ${msg.commandId} completed with exit code ${msg.exitCode}`);
+          }
         }
       } catch (err) {
         console.error('[XTerminal] Error parsing message:', err);
@@ -137,6 +195,13 @@ export function XTerminal({
 
     ws.onclose = () => {
       onStatusChangeRef.current?.('disconnected');
+      // Reject all pending commands on disconnect
+      for (const [commandId, pending] of pendingCommandsRef.current) {
+        clearTimeout(pending.timeoutId);
+        pending.reject(new Error('WebSocket disconnected'));
+        console.warn(`[XTerminal] Command ${commandId} rejected due to disconnect`);
+      }
+      pendingCommandsRef.current.clear();
     };
 
     ws.onerror = (err) => {
@@ -194,6 +259,12 @@ export function XTerminal({
       if (resizeTimeoutRef.current) {
         clearTimeout(resizeTimeoutRef.current);
       }
+      // Clean up pending commands
+      for (const [, pending] of pendingCommandsRef.current) {
+        clearTimeout(pending.timeoutId);
+      }
+      pendingCommandsRef.current.clear();
+
       dataDisposable.dispose();
       resizeObserver.disconnect();
       ws.close();

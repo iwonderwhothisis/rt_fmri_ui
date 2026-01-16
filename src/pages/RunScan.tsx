@@ -147,7 +147,7 @@ export default function RunScan() {
     }
   }, [psychopySessionActive, unregisterTerminal]);
 
-  // Helper function to send command to appropriate terminal
+  // Helper function to send command to appropriate terminal (fire-and-forget)
   const sendCommandToTerminal = useCallback((terminal: 'murfi' | 'psychopy', command: string) => {
     const terminalHandle = terminal === 'murfi' ? murfiTerminalRef.current : psychopyTerminalRef.current;
     if (terminalHandle) {
@@ -156,6 +156,20 @@ export default function RunScan() {
     } else {
       console.warn(`[RunScan] Terminal ${terminal} not ready, cannot send command`);
     }
+  }, []);
+
+  // Helper function to execute command and wait for completion
+  const executeCommandAndWait = useCallback(async (
+    terminal: 'murfi' | 'psychopy',
+    command: string,
+    timeoutMs?: number
+  ): Promise<{ exitCode: number }> => {
+    const terminalHandle = terminal === 'murfi' ? murfiTerminalRef.current : psychopyTerminalRef.current;
+    if (!terminalHandle) {
+      throw new Error(`Terminal ${terminal} not ready`);
+    }
+    console.log(`[RunScan] Executing command on ${terminal} and waiting for completion:`, command);
+    return terminalHandle.executeCommand(command, timeoutMs);
   }, []);
 
   // Helper function to substitute variables in commands
@@ -221,28 +235,42 @@ export default function RunScan() {
 
     // Generate a unique history entry ID for tracking this specific execution
     const historyEntryId = `setup-${Date.now()}`;
+    const startTime = Date.now();
 
     setRunningSteps(prev => new Set(prev).add('setup'));
     setIsRunning(true);
 
     try {
-      // Start step
+      // Start step - record in history
       const startedStep = await sessionService.startStep('setup');
       const startedStepWithId = { ...startedStep, _entryId: historyEntryId };
       setStepHistory(prev => [...prev, startedStepWithId]);
 
-      // Execute command from config if available
+      // Execute command from config and WAIT for actual completion
       const stepConfig = commandsConfig?.steps['setup'];
       if (stepConfig) {
         const variables: Record<string, string> = {
           participantId: sessionConfig?.participantId || '',
         };
         const command = substituteVariables(stepConfig.command, variables);
-        sendCommandToTerminal(stepConfig.terminal, command);
+        const result = await executeCommandAndWait(stepConfig.terminal, command);
+
+        if (result.exitCode !== 0) {
+          throw new Error(`Command failed with exit code ${result.exitCode}`);
+        }
       }
 
-      // Simulate step execution
-      const completedStep = await sessionService.completeStep('setup');
+      // Calculate actual duration
+      const duration = (Date.now() - startTime) / 1000;
+
+      // Create completed step with real duration
+      const completedStep: SessionStepHistory = {
+        step: 'setup',
+        status: 'completed',
+        timestamp: new Date().toISOString(),
+        duration,
+        message: 'Setup completed successfully',
+      };
 
       // Update history - find by the unique entry ID instead of last index
       setStepHistory(prev =>
@@ -271,7 +299,8 @@ export default function RunScan() {
       setSetupCompleted(true);
       setManualWorkflowStep('configure');
     } catch (error) {
-      markHistoryFailed(historyEntryId, 'setup', 'Setup failed');
+      const errorMessage = error instanceof Error ? error.message : 'Setup failed';
+      markHistoryFailed(historyEntryId, 'setup', errorMessage);
       setRunningSteps(prev => {
         const next = new Set(prev);
         next.delete('setup');
@@ -296,28 +325,42 @@ export default function RunScan() {
 
     // Generate a unique history entry ID for tracking this specific execution
     const historyEntryId = `${step}-${Date.now()}`;
+    const startTime = Date.now();
 
     setRunningSteps(prev => new Set(prev).add(step));
     setIsRunning(true);
 
     try {
-      // Start step
+      // Start step - record in history
       const startedStep = await sessionService.startStep(step);
       const startedStepWithId = { ...startedStep, _entryId: historyEntryId };
       setStepHistory(prev => [...prev, startedStepWithId]);
 
-      // Execute command from config if available
+      // Execute command from config and WAIT for actual completion
       const stepConfig = commandsConfig?.steps[step];
       if (stepConfig) {
         const variables: Record<string, string> = {
           participantId: sessionConfig?.participantId || '',
         };
         const command = substituteVariables(stepConfig.command, variables);
-        sendCommandToTerminal(stepConfig.terminal, command);
+        const result = await executeCommandAndWait(stepConfig.terminal, command);
+
+        if (result.exitCode !== 0) {
+          throw new Error(`Command failed with exit code ${result.exitCode}`);
+        }
       }
 
-      // Simulate step execution
-      const completedStep = await sessionService.completeStep(step);
+      // Calculate actual duration
+      const duration = (Date.now() - startTime) / 1000;
+
+      // Create completed step with real duration
+      const completedStep: SessionStepHistory = {
+        step,
+        status: 'completed',
+        timestamp: new Date().toISOString(),
+        duration,
+        message: `${step} completed successfully`,
+      };
 
       // Update history - find by the unique entry ID instead of last index
       setStepHistory(prev =>
@@ -345,7 +388,8 @@ export default function RunScan() {
       });
 
     } catch (error) {
-      markHistoryFailed(historyEntryId, step, 'Step failed');
+      const errorMessage = error instanceof Error ? error.message : 'Step failed';
+      markHistoryFailed(historyEntryId, step, errorMessage);
       setRunningSteps(prev => {
         const next = new Set(prev);
         next.delete(step);
@@ -468,6 +512,7 @@ export default function RunScan() {
   const executeQueueItem = useCallback(async (item: QueueItem) => {
     // Generate a unique history entry ID for tracking this specific execution
     const historyEntryId = `${item.id}-${Date.now()}`;
+    const startTime = Date.now();
 
     // Mark as running
     setExecutionQueue(prev =>
@@ -478,24 +523,25 @@ export default function RunScan() {
     setIsRunning(true);
 
     try {
-      // Start step
+      // Start step - record in history
       const startedStep = await sessionService.startStep(item.step);
       // Add historyEntryId to track this specific execution
       const startedStepWithId = { ...startedStep, _entryId: historyEntryId };
       setStepHistory(prev => [...prev, startedStepWithId]);
 
-      // Execute command from config if available
+      // Execute command from config and WAIT for actual completion
       const stepConfig = commandsConfig?.steps[item.step];
       if (stepConfig) {
         const variables: Record<string, string> = {
           participantId: sessionConfig?.participantId || '',
         };
         const command = substituteVariables(stepConfig.command, variables);
-        sendCommandToTerminal(stepConfig.terminal, command);
-      }
+        const result = await executeCommandAndWait(stepConfig.terminal, command);
 
-      // Simulate step execution
-      const completedStep = await sessionService.completeStep(item.step);
+        if (result.exitCode !== 0) {
+          throw new Error(`Command failed with exit code ${result.exitCode}`);
+        }
+      }
 
       // Check if this item was stopped using the ref (most reliable check)
       if (stoppedItemsRef.current.has(item.id)) {
@@ -524,6 +570,18 @@ export default function RunScan() {
         return;
       }
 
+      // Calculate actual duration
+      const duration = (Date.now() - startTime) / 1000;
+
+      // Create completed step with real duration
+      const completedStep: SessionStepHistory = {
+        step: item.step,
+        status: 'completed',
+        timestamp: new Date().toISOString(),
+        duration,
+        message: `${item.step} completed successfully`,
+      };
+
       // Update history - find by the unique entry ID instead of last index
       setStepHistory(prev =>
         prev.map(s =>
@@ -549,7 +607,8 @@ export default function RunScan() {
       });
 
     } catch (error) {
-      markHistoryFailed(historyEntryId, item.step, 'Step failed');
+      const errorMessage = error instanceof Error ? error.message : 'Step failed';
+      markHistoryFailed(historyEntryId, item.step, errorMessage);
       // Mark as failed
       setExecutionQueue(prev =>
         prev.map(i =>
@@ -564,7 +623,7 @@ export default function RunScan() {
       });
       setIsRunning(false);
     }
-  }, [commandsConfig, sessionConfig?.participantId, substituteVariables, sendCommandToTerminal, markHistoryFailed]);
+  }, [commandsConfig, sessionConfig?.participantId, substituteVariables, executeCommandAndWait, markHistoryFailed]);
 
   // Auto-execution logic
   useEffect(() => {
