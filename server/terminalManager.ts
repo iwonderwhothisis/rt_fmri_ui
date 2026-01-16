@@ -1,8 +1,12 @@
 import { spawn, ChildProcess } from 'child_process';
 
+// Unique marker that won't appear in normal output
+const COMMAND_MARKER_PREFIX = '__NEURO_ORCH_CMD_DONE__';
+
 interface TerminalSession {
   process: ChildProcess;
   createdAt: Date;
+  outputBuffer: string;
 }
 
 export class TerminalManager {
@@ -12,6 +16,7 @@ export class TerminalManager {
     id: string,
     onData: (data: string) => void,
     onExit: (code: number) => void,
+    onCommandComplete: (commandId: string, exitCode: number) => void,
     initialCommand?: string
   ): ChildProcess | null {
     // Kill existing session if it exists
@@ -53,9 +58,24 @@ export class TerminalManager {
     // Send a welcome message and show we're connected
     onData(`\x1b[32m[Terminal connected to ${shell}]\x1b[0m\r\n`);
 
-    // Handle stdout
+    const session: TerminalSession = {
+      process: childProcess,
+      createdAt: new Date(),
+      outputBuffer: '',
+    };
+
+    // Handle stdout with marker detection
     childProcess.stdout.on('data', (data: Buffer) => {
-      onData(data.toString());
+      const output = data.toString();
+
+      // Check for command completion markers and notify
+      this.parseCommandCompletions(id, output, onCommandComplete);
+
+      // Filter out the marker lines before sending to client
+      const filteredOutput = this.filterMarkers(output);
+      if (filteredOutput) {
+        onData(filteredOutput);
+      }
     });
 
     // Handle stderr
@@ -76,7 +96,7 @@ export class TerminalManager {
       onExit(-1);
     });
 
-    this.sessions.set(id, { process: childProcess, createdAt: new Date() });
+    this.sessions.set(id, session);
 
     // Send initial command after a brief delay for shell startup
     if (initialCommand) {
@@ -88,6 +108,73 @@ export class TerminalManager {
 
     console.log(`[TerminalManager] Session ${id} created successfully`);
     return childProcess;
+  }
+
+  /**
+   * Execute a command with completion tracking
+   */
+  executeCommand(
+    sessionId: string,
+    command: string,
+    commandId: string
+  ): void {
+    const session = this.sessions.get(sessionId);
+    if (!session?.process.stdin) {
+      console.error(`[TerminalManager] Session ${sessionId} not found`);
+      return;
+    }
+
+    // Wrap command to output exit code with unique marker when done
+    // Format: command; echo "__NEURO_ORCH_CMD_DONE__<commandId>:$?"
+    const wrappedCommand = `${command}; echo "${COMMAND_MARKER_PREFIX}${commandId}:$?"`;
+
+    console.log(`[TerminalManager] Executing tracked command ${commandId}: ${command}`);
+    session.process.stdin.write(wrappedCommand + '\n');
+  }
+
+  /**
+   * Parse output for completion markers
+   */
+  private parseCommandCompletions(
+    sessionId: string,
+    output: string,
+    onComplete: (commandId: string, exitCode: number) => void
+  ): void {
+    const session = this.sessions.get(sessionId);
+    if (!session) return;
+
+    // Accumulate output for multi-chunk markers
+    session.outputBuffer += output;
+
+    // Look for completion markers
+    const markerRegex = new RegExp(
+      `${COMMAND_MARKER_PREFIX}([a-f0-9-]+):(\\d+)`,
+      'g'
+    );
+
+    let match;
+    while ((match = markerRegex.exec(session.outputBuffer)) !== null) {
+      const commandId = match[1];
+      const exitCode = parseInt(match[2], 10);
+
+      console.log(`[TerminalManager] Command ${commandId} completed with exit code ${exitCode}`);
+      onComplete(commandId, exitCode);
+    }
+
+    // Clear processed parts of buffer (keep last 500 chars for partial markers)
+    if (session.outputBuffer.length > 1000) {
+      session.outputBuffer = session.outputBuffer.slice(-500);
+    }
+  }
+
+  /**
+   * Filter out marker lines from output sent to client
+   */
+  private filterMarkers(output: string): string {
+    return output
+      .split('\n')
+      .filter(line => !line.includes(COMMAND_MARKER_PREFIX))
+      .join('\n');
   }
 
   getSession(id: string): TerminalSession | undefined {
