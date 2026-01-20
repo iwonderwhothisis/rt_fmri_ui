@@ -764,28 +764,42 @@ export default function RunScan() {
                   <div className="mt-6 pt-6 border-t border-border">
                     <div className="flex items-center justify-between">
                       <div>
-                        <h3 className="text-sm font-semibold text-foreground mb-1">Setup Required</h3>
+                        <h3 className="text-sm font-semibold text-foreground mb-1">
+                          {setupRan ? 'Setup Complete' : 'Setup Required'}
+                        </h3>
                         <p className="text-xs text-muted-foreground">
-                          Complete setup before proceeding to configuration
+                          {setupRan
+                            ? 'Setup has run. Proceed to configuration when ready.'
+                            : 'Complete setup before proceeding to configuration'}
                         </p>
                       </div>
-                      <Button
-                        onClick={handleSetup}
-                        disabled={isRunning || runningSteps.has('setup')}
-                        className="bg-primary hover:bg-primary/90"
-                      >
-                        {runningSteps.has('setup') ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Running Setup...
-                          </>
-                        ) : (
-                          <>
-                            Run Setup
-                            <ArrowRight className="ml-2 h-4 w-4" />
-                          </>
-                        )}
-                      </Button>
+                      {!setupRan ? (
+                        <Button
+                          onClick={handleSetup}
+                          disabled={isRunning || runningSteps.has('setup')}
+                          className="bg-primary hover:bg-primary/90"
+                        >
+                          {runningSteps.has('setup') ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Running Setup...
+                            </>
+                          ) : (
+                            <>
+                              Run Setup
+                              <ArrowRight className="ml-2 h-4 w-4" />
+                            </>
+                          )}
+                        </Button>
+                      ) : (
+                        <Button
+                          onClick={handleProceedToConfigure}
+                          className="bg-primary hover:bg-primary/90"
+                        >
+                          Proceed to Configure
+                          <ArrowRight className="ml-2 h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                   </div>
                 )}
