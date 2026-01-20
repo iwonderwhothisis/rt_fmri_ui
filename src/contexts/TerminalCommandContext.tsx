@@ -7,6 +7,11 @@ interface TerminalCommandContextValue {
   registerTerminal: (id: 'murfi' | 'psychopy', handle: TerminalHandle) => void;
   unregisterTerminal: (id: 'murfi' | 'psychopy') => void;
   executeButtonCommand: (buttonId: string, variables?: Record<string, string>) => void;
+  executeTrackedCommand: (
+    terminalId: 'murfi' | 'psychopy',
+    command: string,
+    timeoutMs?: number
+  ) => Promise<{ exitCode: number }>;
   isTerminalReady: (id: 'murfi' | 'psychopy') => boolean;
   configLoaded: boolean;
 }
@@ -95,11 +100,25 @@ export function TerminalCommandProvider({ children }: { children: ReactNode }) {
     }
   }, [config, substituteVariables]);
 
+  const executeTrackedCommand = useCallback(async (
+    terminalId: 'murfi' | 'psychopy',
+    command: string,
+    timeoutMs?: number
+  ): Promise<{ exitCode: number }> => {
+    const terminalHandle = terminalsRef.current.get(terminalId);
+    if (!terminalHandle) {
+      throw new Error(`Terminal ${terminalId} not ready`);
+    }
+    console.log(`[TerminalCommand] Executing tracked command on ${terminalId}: ${command}`);
+    return terminalHandle.executeCommand(command, timeoutMs);
+  }, []);
+
   return (
     <TerminalCommandContext.Provider value={{
       registerTerminal,
       unregisterTerminal,
       executeButtonCommand,
+      executeTrackedCommand,
       isTerminalReady,
       configLoaded,
     }}>
