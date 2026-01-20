@@ -32,7 +32,7 @@ export const sessionSteps: SessionStep[] = [
 
 export default function RunScan() {
   const navigate = useNavigate();
-  const { registerTerminal, unregisterTerminal, executeButtonCommand } = useTerminalCommand();
+  const { registerTerminal, unregisterTerminal, executeButtonCommand, executeTrackedCommand } = useTerminalCommand();
   const [sessionConfig, setSessionConfig] = useState<SessionConfig | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [sessionStartTime, setSessionStartTime] = useState<string | null>(null);
@@ -158,20 +158,6 @@ export default function RunScan() {
     }
   }, []);
 
-  // Helper function to execute command and wait for completion
-  const executeCommandAndWait = useCallback(async (
-    terminal: 'murfi' | 'psychopy',
-    command: string,
-    timeoutMs?: number
-  ): Promise<{ exitCode: number }> => {
-    const terminalHandle = terminal === 'murfi' ? murfiTerminalRef.current : psychopyTerminalRef.current;
-    if (!terminalHandle) {
-      throw new Error(`Terminal ${terminal} not ready`);
-    }
-    console.log(`[RunScan] Executing command on ${terminal} and waiting for completion:`, command);
-    return terminalHandle.executeCommand(command, timeoutMs);
-  }, []);
-
   // Helper function to substitute variables in commands
   const substituteVariables = useCallback((command: string, variables: Record<string, string>) => {
     let result = command;
@@ -220,6 +206,7 @@ export default function RunScan() {
       psychopyConfig,
     });
     setSetupCompleted(false);
+    setSetupRan(false);
 
     // If creating a new participant, run the create step
     if (isNewParticipant) {
@@ -227,87 +214,28 @@ export default function RunScan() {
     }
   };
 
-  const handleSetup = async () => {
-    if (runningSteps.has('setup')) return;
+  const [setupRan, setSetupRan] = useState(false);
 
-    // Execute button command
+  const handleSetup = () => {
+    // Execute button command (fire-and-forget)
     executeButtonCommand('runScan.setup', { participantId: sessionConfig?.participantId || '' });
 
-    // Generate a unique history entry ID for tracking this specific execution
-    const historyEntryId = `setup-${Date.now()}`;
-    const startTime = Date.now();
-
-    setRunningSteps(prev => new Set(prev).add('setup'));
-    setIsRunning(true);
-
-    try {
-      // Start step - record in history
-      const startedStep = await sessionService.startStep('setup');
-      const startedStepWithId = { ...startedStep, _entryId: historyEntryId };
-      setStepHistory(prev => [...prev, startedStepWithId]);
-
-      // Execute command from config and WAIT for actual completion
-      const stepConfig = commandsConfig?.steps['setup'];
-      if (stepConfig) {
-        const variables: Record<string, string> = {
-          participantId: sessionConfig?.participantId || '',
-        };
-        const command = substituteVariables(stepConfig.command, variables);
-        const result = await executeCommandAndWait(stepConfig.terminal, command);
-
-        if (result.exitCode !== 0) {
-          throw new Error(`Command failed with exit code ${result.exitCode}`);
-        }
-      }
-
-      // Calculate actual duration
-      const duration = (Date.now() - startTime) / 1000;
-
-      // Create completed step with real duration
-      const completedStep: SessionStepHistory = {
-        step: 'setup',
-        status: 'completed',
-        timestamp: new Date().toISOString(),
-        duration,
-        message: 'Setup completed successfully',
+    // Also send the step command from config if available
+    const stepConfig = commandsConfig?.steps['setup'];
+    if (stepConfig) {
+      const variables: Record<string, string> = {
+        participantId: sessionConfig?.participantId || '',
       };
-
-      // Update history - find by the unique entry ID instead of last index
-      setStepHistory(prev =>
-        prev.map(s =>
-          (s as SessionStepHistory & { _entryId?: string })._entryId === historyEntryId
-            ? { ...completedStep, _entryId: historyEntryId }
-            : s
-        )
-      );
-
-      // Increment execution count for this step
-      setStepExecutionCounts(prev => {
-        const newCounts = new Map(prev);
-        const currentCount = newCounts.get('setup') || 0;
-        newCounts.set('setup', currentCount + 1);
-        return newCounts;
-      });
-
-      setIsRunning(false);
-      setRunningSteps(prev => {
-        const next = new Set(prev);
-        next.delete('setup');
-        return next;
-      });
-
-      setSetupCompleted(true);
-      setManualWorkflowStep('configure');
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Setup failed';
-      markHistoryFailed(historyEntryId, 'setup', errorMessage);
-      setRunningSteps(prev => {
-        const next = new Set(prev);
-        next.delete('setup');
-        return next;
-      });
-      setIsRunning(false);
+      const command = substituteVariables(stepConfig.command, variables);
+      sendCommandToTerminal(stepConfig.terminal, command);
     }
+
+    setSetupRan(true);
+  };
+
+  const handleProceedToConfigure = () => {
+    setSetupCompleted(true);
+    setManualWorkflowStep('configure');
   };
 
   const handlePsychoPyConfigChange = (config: PsychoPyConfig) => {
@@ -343,7 +271,7 @@ export default function RunScan() {
           participantId: sessionConfig?.participantId || '',
         };
         const command = substituteVariables(stepConfig.command, variables);
-        const result = await executeCommandAndWait(stepConfig.terminal, command);
+        const result = await executeTrackedCommand(stepConfig.terminal, command);
 
         if (result.exitCode !== 0) {
           throw new Error(`Command failed with exit code ${result.exitCode}`);
@@ -536,7 +464,7 @@ export default function RunScan() {
           participantId: sessionConfig?.participantId || '',
         };
         const command = substituteVariables(stepConfig.command, variables);
-        const result = await executeCommandAndWait(stepConfig.terminal, command);
+        const result = await executeTrackedCommand(stepConfig.terminal, command);
 
         if (result.exitCode !== 0) {
           throw new Error(`Command failed with exit code ${result.exitCode}`);
@@ -623,7 +551,7 @@ export default function RunScan() {
       });
       setIsRunning(false);
     }
-  }, [commandsConfig, sessionConfig?.participantId, substituteVariables, executeCommandAndWait, markHistoryFailed]);
+  }, [commandsConfig, sessionConfig?.participantId, substituteVariables, executeTrackedCommand, markHistoryFailed]);
 
   // Auto-execution logic
   useEffect(() => {
@@ -747,6 +675,7 @@ export default function RunScan() {
     setQueueStopped(false);
     stoppedItemsRef.current.clear();
     setSetupCompleted(false);
+    setSetupRan(false);
     setIsRunning(false);
     setManualWorkflowStep(null);
     setMurfiStarted(false);
@@ -837,26 +766,30 @@ export default function RunScan() {
                   <div>
                     <h3 className="text-sm font-semibold text-foreground mb-1">Setup Required</h3>
                     <p className="text-xs text-muted-foreground">
-                      Complete setup before proceeding to configuration
+                      {setupRan 
+                        ? 'Setup command sent. Click Next when ready to proceed.'
+                        : 'Run setup before proceeding to configuration'
+                      }
                     </p>
                   </div>
-                  <Button
-                    onClick={handleSetup}
-                    disabled={isRunning || runningSteps.has('setup')}
-                    className="bg-primary hover:bg-primary/90"
-                  >
-                    {runningSteps.has('setup') ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Running Setup...
-                      </>
-                    ) : (
-                      <>
-                        Run Setup
-                        <ArrowRight className="ml-2 h-4 w-4" />
-                      </>
-                    )}
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={handleSetup}
+                      disabled={!commandsConfig}
+                      variant={setupRan ? "outline" : "default"}
+                      className={setupRan ? "" : "bg-primary hover:bg-primary/90"}
+                    >
+                      {setupRan ? 'Run Again' : 'Run Setup'}
+                    </Button>
+                    <Button
+                      onClick={handleProceedToConfigure}
+                      disabled={!setupRan}
+                      className="bg-primary hover:bg-primary/90"
+                    >
+                      Next
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               </div>
             )}
