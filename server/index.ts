@@ -93,7 +93,7 @@ wss.on('connection', (ws, req) => {
   console.log(`[Terminal] New connection for session: ${sessionId}`);
   wsSessionMap.set(ws, sessionId);
 
-  // Create PTY session
+  // Create PTY session with command completion callback
   const ptyProcess = terminalManager.createSession(
     sessionId,
     // onData: send PTY output to WebSocket
@@ -107,6 +107,18 @@ wss.on('connection', (ws, req) => {
       console.log(`[Terminal] Session ${sessionId} exited with code ${exitCode}`);
       if (ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: 'exit', sessionId, exitCode }));
+      }
+    },
+    // onCommandComplete: notify when a tracked command finishes
+    (commandId: string, exitCode: number) => {
+      console.log(`[Terminal] Command ${commandId} completed with exit code ${exitCode}`);
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+          type: 'command-complete',
+          sessionId,
+          commandId,
+          exitCode
+        }));
       }
     },
     initialCommand || undefined
@@ -130,10 +142,17 @@ wss.on('connection', (ws, req) => {
           break;
 
         case 'command':
-          // Execute a command in the terminal (adds newline for non-TTY shell)
+          // Execute a command in the terminal
           if (msg.command) {
-            console.log(`[Terminal] Executing command in ${sessionId}: ${msg.command}`);
-            terminalManager.write(sessionId, msg.command + '\n');
+            if (msg.commandId) {
+              // Tracked command - use executeCommand for completion detection
+              console.log(`[Terminal] Executing tracked command in ${sessionId}: ${msg.command} (id: ${msg.commandId})`);
+              terminalManager.executeCommand(sessionId, msg.command, msg.commandId);
+            } else {
+              // Legacy untracked command (adds newline for non-TTY shell)
+              console.log(`[Terminal] Executing untracked command in ${sessionId}: ${msg.command}`);
+              terminalManager.write(sessionId, msg.command + '\n');
+            }
           }
           break;
 
