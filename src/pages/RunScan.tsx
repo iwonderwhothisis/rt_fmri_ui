@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { ParticipantSelector } from '@/components/ParticipantSelector';
 import { PsychoPyConfigComponent } from '@/components/PsychoPyConfig';
 import { SessionControls } from '@/components/SessionControls';
-import { BrainScanPreview } from '@/components/BrainScanPreview';
 import { WorkflowStepper, WorkflowStep } from '@/components/WorkflowStepper';
 import { InitializeStep } from '@/components/InitializeStep';
 import { XTerminal, TerminalHandle } from '@/components/XTerminal';
@@ -14,10 +13,9 @@ import { useTerminalCommand } from '@/contexts/TerminalCommandContext';
 import { sessionService } from '@/services/mockSessionService';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, CheckCircle2, ChevronDown, Loader2, Terminal } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Loader2, Terminal } from 'lucide-react';
 import { QueueItem } from '@/components/ExecutionQueue';
 import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
 import { buildApiUrl } from '@/lib/apiBase';
 
 export const sessionSteps: SessionStep[] = [
@@ -61,7 +59,6 @@ export default function RunScan() {
   const [queueStopped, setQueueStopped] = useState(false);
   const [setupCompleted, setSetupCompleted] = useState(false);
   const stoppedItemsRef = useRef<Set<string>>(new Set());
-  const [terminalOpen, setTerminalOpen] = useState(false);
   const [commandsConfig, setCommandsConfig] = useState<CommandsConfig | null>(null);
   const murfiTerminalRef = useRef<TerminalHandle | null>(null);
   const psychopyTerminalRef = useRef<TerminalHandle | null>(null);
@@ -642,13 +639,11 @@ export default function RunScan() {
   const handleStartMurfi = () => {
     setIsStartingMurfi(true);
     setMurfiSessionActive(true);
-    setTerminalOpen(true); // Auto-open terminal panel
   };
 
   const handleStartPsychoPy = () => {
     setIsStartingPsychoPy(true);
     setPsychopySessionActive(true);
-    setTerminalOpen(true); // Auto-open terminal panel
   };
 
   const handleReset = async () => {
@@ -838,109 +833,97 @@ export default function RunScan() {
           </Card>
         )}
 
-        {workflowStep === 'execute' && (
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-            {/* Left Column - Controls and Status */}
-            <div className="space-y-6">
-              <SessionControls
-                config={sessionConfig}
-                isRunning={isRunning}
-                sessionInitialized={sessionInitialized}
-                sessionSteps={sessionSteps}
-                queueItems={executionQueue}
-                queueStarted={queueStarted}
-                queueStopped={queueStopped}
-                onStart={handleStartSession}
-                onReset={handleReset}
-                onAddToQueue={handleAddToQueue}
-                onRemoveFromQueue={handleRemoveFromQueue}
-                onReorderQueue={handleReorderQueue}
-                onClearQueue={handleClearQueue}
-                onStop={handleStop}
-                onResume={handleResume}
-                onStartQueue={handleStartQueue}
-              />
+        {/* Execute step + Terminals wrapper - terminals always at same tree position to preserve WebSocket connections */}
+        {(workflowStep === 'execute' || (murfiSessionActive || psychopySessionActive)) && (
+          <div className={
+            workflowStep === 'execute' && (murfiSessionActive || psychopySessionActive)
+              ? 'flex flex-col xl:flex-row gap-6'
+              : ''
+          }>
+            {/* Session Controls - only during execute step */}
+            {workflowStep === 'execute' && (
+              <div className={(murfiSessionActive || psychopySessionActive) ? 'xl:flex-1' : ''}>
+                <SessionControls
+                  config={sessionConfig}
+                  isRunning={isRunning}
+                  sessionInitialized={sessionInitialized}
+                  sessionSteps={sessionSteps}
+                  queueItems={executionQueue}
+                  queueStarted={queueStarted}
+                  queueStopped={queueStopped}
+                  onStart={handleStartSession}
+                  onReset={handleReset}
+                  onAddToQueue={handleAddToQueue}
+                  onRemoveFromQueue={handleRemoveFromQueue}
+                  onReorderQueue={handleReorderQueue}
+                  onClearQueue={handleClearQueue}
+                  onStop={handleStop}
+                  onResume={handleResume}
+                  onStartQueue={handleStartQueue}
+                />
+              </div>
+            )}
 
-            </div>
+            {/* Single terminal instance - always at same position in component tree */}
+            {(murfiSessionActive || psychopySessionActive) && (
+              <div className={workflowStep === 'execute' ? 'xl:flex-1' : ''}>
+                <Card className="p-4 md:p-5 bg-card border-border h-fit">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+                        <Terminal className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-foreground">System terminals</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="text-[11px] font-medium">
+                        Murfi · {murfiTerminalStatus === 'connected' ? 'Running' : murfiTerminalStatus === 'connecting' ? 'Connecting...' : 'Disconnected'}
+                      </Badge>
+                      <Badge variant="outline" className="text-[11px] font-medium">
+                        PsychoPy · {psychopyTerminalStatus === 'connected' ? 'Running' : psychopyTerminalStatus === 'connecting' ? 'Connecting...' : 'Disconnected'}
+                      </Badge>
+                    </div>
+                  </div>
 
-            {/* Right Column - Preview */}
-            <div className="space-y-6">
-              <BrainScanPreview isActive={isRunning || sessionInitialized} />
-            </div>
+                  {/* Terminals stacked vertically */}
+                  <div className="mt-4 flex flex-col gap-4">
+                    {murfiSessionActive && (
+                      <div className="space-y-2">
+                        <div className="text-xs font-semibold text-foreground">Murfi</div>
+                        <div className="rounded-lg border border-border/60 overflow-hidden" style={{ height: '250px' }}>
+                          <XTerminal
+                            sessionId="murfi"
+                            onStatusChange={handleMurfiStatusChange}
+                            onReady={(handle) => {
+                              murfiTerminalRef.current = handle;
+                              registerTerminal('murfi', handle);
+                            }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                    {psychopySessionActive && (
+                      <div className="space-y-2">
+                        <div className="text-xs font-semibold text-foreground">PsychoPy</div>
+                        <div className="rounded-lg border border-border/60 overflow-hidden" style={{ height: '250px' }}>
+                          <XTerminal
+                            sessionId="psychopy"
+                            onStatusChange={handlePsychoPyStatusChange}
+                            onReady={(handle) => {
+                              psychopyTerminalRef.current = handle;
+                              registerTerminal('psychopy', handle);
+                            }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </Card>
+              </div>
+            )}
           </div>
-        )}
-
-        {/* Terminals card - show when any session is active */}
-        {/* Terminals persist when hidden (CSS visibility) to maintain WebSocket connections */}
-        {(murfiSessionActive || psychopySessionActive) && (
-          <Card className="p-4 md:p-5 bg-card border-border">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
-                  <Terminal className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-foreground">System terminals</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Badge variant="outline" className="text-[11px] font-medium">
-                  Murfi · {murfiTerminalStatus === 'connected' ? 'Running' : murfiTerminalStatus === 'connecting' ? 'Connecting...' : 'Disconnected'}
-                </Badge>
-                <Badge variant="outline" className="text-[11px] font-medium">
-                  PsychoPy · {psychopyTerminalStatus === 'connected' ? 'Running' : psychopyTerminalStatus === 'connecting' ? 'Connecting...' : 'Disconnected'}
-                </Badge>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setTerminalOpen(prev => !prev);
-                    executeButtonCommand('runScan.toggleTerminal');
-                  }}
-                  className="gap-1 text-muted-foreground"
-                >
-                  {terminalOpen ? 'Hide' : 'Show'}
-                  <ChevronDown
-                    className={`h-4 w-4 transition-transform ${terminalOpen ? 'rotate-180' : ''}`}
-                  />
-                </Button>
-              </div>
-            </div>
-
-            {/* Use CSS visibility to hide/show - keeps terminals mounted and WebSocket connections alive */}
-            <div className={cn("mt-4 grid grid-cols-1 md:grid-cols-2 gap-4", !terminalOpen && "hidden")}>
-              {murfiSessionActive && (
-                <div className="space-y-2">
-                  <div className="text-xs font-semibold text-foreground">Murfi</div>
-                  <div className="rounded-lg border border-border/60 overflow-hidden" style={{ height: '250px' }}>
-                    <XTerminal
-                      sessionId="murfi"
-                      onStatusChange={handleMurfiStatusChange}
-                      onReady={(handle) => {
-                        murfiTerminalRef.current = handle;
-                        registerTerminal('murfi', handle);
-                      }}
-                    />
-                  </div>
-                </div>
-              )}
-              {psychopySessionActive && (
-                <div className="space-y-2">
-                  <div className="text-xs font-semibold text-foreground">PsychoPy</div>
-                  <div className="rounded-lg border border-border/60 overflow-hidden" style={{ height: '250px' }}>
-                    <XTerminal
-                      sessionId="psychopy"
-                      onStatusChange={handlePsychoPyStatusChange}
-                      onReady={(handle) => {
-                        psychopyTerminalRef.current = handle;
-                        registerTerminal('psychopy', handle);
-                      }}
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-          </Card>
         )}
       </div>
     </div>
