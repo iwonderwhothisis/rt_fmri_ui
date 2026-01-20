@@ -1,3 +1,4 @@
+import { ReactNode } from 'react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import {
@@ -12,9 +13,10 @@ import { PsychoPyConfig, FeedbackCondition } from '@/types/session';
 interface PsychoPyConfigProps {
   config: PsychoPyConfig;
   onChange: (config: PsychoPyConfig) => void;
+  actionButton?: ReactNode;
 }
 
-export function PsychoPyConfigComponent({ config, onChange }: PsychoPyConfigProps) {
+export function PsychoPyConfigComponent({ config, onChange, actionButton }: PsychoPyConfigProps) {
   return (
     <div>
       <h3 className="text-lg font-semibold mb-4 text-foreground">PsychoPy Configuration</h3>
@@ -71,6 +73,13 @@ export function PsychoPyConfigComponent({ config, onChange }: PsychoPyConfigProp
             </SelectContent>
           </Select>
         </div>
+
+        {/* Action button slot - aligns with the second column */}
+        {actionButton && (
+          <div className="flex items-end">
+            {actionButton}
+          </div>
+        )}
       </div>
     </div>
   );

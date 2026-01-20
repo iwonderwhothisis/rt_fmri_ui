@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { ParticipantSelector } from '@/components/ParticipantSelector';
 import { PsychoPyConfigComponent } from '@/components/PsychoPyConfig';
 import { SessionControls } from '@/components/SessionControls';
-import { BrainScanPreview } from '@/components/BrainScanPreview';
 import { WorkflowStepper, WorkflowStep } from '@/components/WorkflowStepper';
 import { InitializeStep } from '@/components/InitializeStep';
 import { XTerminal, TerminalHandle } from '@/components/XTerminal';
@@ -14,10 +13,9 @@ import { useTerminalCommand } from '@/contexts/TerminalCommandContext';
 import { sessionService } from '@/services/mockSessionService';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, CheckCircle2, ChevronDown, Loader2, Terminal } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Loader2, Terminal } from 'lucide-react';
 import { QueueItem } from '@/components/ExecutionQueue';
 import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
 import { buildApiUrl } from '@/lib/apiBase';
 
 export const sessionSteps: SessionStep[] = [
@@ -61,7 +59,6 @@ export default function RunScan() {
   const [queueStopped, setQueueStopped] = useState(false);
   const [setupCompleted, setSetupCompleted] = useState(false);
   const stoppedItemsRef = useRef<Set<string>>(new Set());
-  const [terminalOpen, setTerminalOpen] = useState(false);
   const [commandsConfig, setCommandsConfig] = useState<CommandsConfig | null>(null);
   const murfiTerminalRef = useRef<TerminalHandle | null>(null);
   const psychopyTerminalRef = useRef<TerminalHandle | null>(null);
@@ -629,13 +626,11 @@ export default function RunScan() {
   const handleStartMurfi = () => {
     setIsStartingMurfi(true);
     setMurfiSessionActive(true);
-    setTerminalOpen(true); // Auto-open terminal panel
   };
 
   const handleStartPsychoPy = () => {
     setIsStartingPsychoPy(true);
     setPsychopySessionActive(true);
-    setTerminalOpen(true); // Auto-open terminal panel
   };
 
   const handleReset = async () => {
@@ -728,212 +723,211 @@ export default function RunScan() {
           />
         </Card>
 
-        {/* Main Content Based on Workflow Step */}
-        {workflowStep === 'initialize' && (
-          <InitializeStep
-            murfiStarted={murfiStarted}
-            psychopyStarted={psychopyStarted}
-            onStartMurfi={handleStartMurfi}
-            onStartPsychoPy={handleStartPsychoPy}
-            isStartingMurfi={isStartingMurfi}
-            isStartingPsychoPy={isStartingPsychoPy}
-            onConfirmProceed={handleConfirmInitialize}
-            canProceed={murfiStarted && psychopyStarted}
-          />
-        )}
-
-        {workflowStep === 'participant' && (
-          <Card className="p-6 bg-card border-border">
-            <h2 className="text-xl font-semibold mb-4 text-foreground flex items-center gap-2">
-              <span className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold">
-                2
-              </span>
-              Select Participant
-            </h2>
-            <p className="text-muted-foreground mb-6">
-              Choose an existing participant or create a new one.
-            </p>
-
-            <ParticipantSelector
-              onParticipantSelect={(id, isNew) => handleParticipantSelect(id, isNew)}
-              selectedParticipantId={sessionConfig?.participantId}
-              inline={false}
-            />
-
-            {sessionConfig?.participantId && !setupCompleted && (
-              <div className="mt-6 pt-6 border-t border-border">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-sm font-semibold text-foreground mb-1">Setup Required</h3>
-                    <p className="text-xs text-muted-foreground">
-                      {setupRan 
-                        ? 'Setup command sent. Click Next when ready to proceed.'
-                        : 'Run setup before proceeding to configuration'
-                      }
-                    </p>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      onClick={handleSetup}
-                      disabled={!commandsConfig}
-                      variant={setupRan ? "outline" : "default"}
-                      className={setupRan ? "" : "bg-primary hover:bg-primary/90"}
-                    >
-                      {setupRan ? 'Run Again' : 'Run Setup'}
-                    </Button>
-                    <Button
-                      onClick={handleProceedToConfigure}
-                      disabled={!setupRan}
-                      className="bg-primary hover:bg-primary/90"
-                    >
-                      Next
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
+        {/* Main Content - Two-column layout with equal height columns */}
+        <div className="flex flex-col xl:flex-row xl:items-stretch gap-6">
+          {/* Left column - Step content */}
+          <div className="xl:flex-1 flex flex-col">
+            {workflowStep === 'initialize' && (
+              <div className="flex-1 flex flex-col [&>*]:flex-1">
+                <InitializeStep
+                  murfiStarted={murfiStarted}
+                  psychopyStarted={psychopyStarted}
+                  onStartMurfi={handleStartMurfi}
+                  onStartPsychoPy={handleStartPsychoPy}
+                  isStartingMurfi={isStartingMurfi}
+                  isStartingPsychoPy={isStartingPsychoPy}
+                  onConfirmProceed={handleConfirmInitialize}
+                  canProceed={murfiStarted && psychopyStarted}
+                />
               </div>
             )}
-          </Card>
-        )}
 
-        {workflowStep === 'configure' && sessionConfig?.participantId && (
-          <Card className="p-6 bg-card border-border">
-            <h2 className="text-xl font-semibold mb-4 text-foreground flex items-center gap-2">
-              <span className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold">
-                3
-              </span>
-              Configure PsychoPy Settings
-            </h2>
-            <p className="text-muted-foreground mb-6">
-              Configure the PsychoPy settings for this session.
-            </p>
+            {workflowStep === 'participant' && (
+              <Card className="p-6 bg-card border-border">
+                <h2 className="text-xl font-semibold mb-4 text-foreground flex items-center gap-2">
+                  <span className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold">
+                    2
+                  </span>
+                  Select Participant
+                </h2>
+                <p className="text-muted-foreground mb-6">
+                  Choose an existing participant or create a new one.
+                </p>
 
-            <div className="space-y-6">
-              <PsychoPyConfigComponent
-                config={psychopyConfig}
-                onChange={handlePsychoPyConfigChange}
-              />
-              <div className="flex justify-end pt-4">
-                <Button
-                  onClick={() => {
-                    handleStartSession();
-                    setManualWorkflowStep('execute');
-                  }}
-                  disabled={!sessionConfig?.psychopyConfig}
-                  className="bg-primary hover:bg-primary/90"
-                >
-                  Start Session & Continue
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
+                <ParticipantSelector
+                  onParticipantSelect={(id, isNew) => handleParticipantSelect(id, isNew)}
+                  selectedParticipantId={sessionConfig?.participantId}
+                  inline={false}
+                />
+
+                {sessionConfig?.participantId && !setupCompleted && (
+                  <div className="mt-6 pt-6 border-t border-border">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-sm font-semibold text-foreground mb-1">
+                          {setupRan ? 'Setup Complete' : 'Setup Required'}
+                        </h3>
+                        <p className="text-xs text-muted-foreground">
+                          {setupRan
+                            ? 'Setup has run. Proceed to configuration when ready.'
+                            : 'Complete setup before proceeding to configuration'}
+                        </p>
+                      </div>
+                      {!setupRan ? (
+                        <Button
+                          onClick={handleSetup}
+                          disabled={isRunning || runningSteps.has('setup')}
+                          className="bg-primary hover:bg-primary/90"
+                        >
+                          {runningSteps.has('setup') ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Running Setup...
+                            </>
+                          ) : (
+                            <>
+                              Run Setup
+                              <ArrowRight className="ml-2 h-4 w-4" />
+                            </>
+                          )}
+                        </Button>
+                      ) : (
+                        <Button
+                          onClick={handleProceedToConfigure}
+                          className="bg-primary hover:bg-primary/90"
+                        >
+                          Proceed to Configure
+                          <ArrowRight className="ml-2 h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </Card>
+            )}
+
+            {workflowStep === 'configure' && sessionConfig?.participantId && (
+              <Card className="p-6 bg-card border-border">
+                <h2 className="text-xl font-semibold mb-4 text-foreground flex items-center gap-2">
+                  <span className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold">
+                    3
+                  </span>
+                  Configure PsychoPy Settings
+                </h2>
+                <p className="text-muted-foreground mb-6">
+                  Configure the PsychoPy settings for this session.
+                </p>
+
+                <PsychoPyConfigComponent
+                  config={psychopyConfig}
+                  onChange={handlePsychoPyConfigChange}
+                  actionButton={
+                    <Button
+                      onClick={() => {
+                        handleStartSession();
+                        setManualWorkflowStep('execute');
+                      }}
+                      disabled={!sessionConfig?.psychopyConfig}
+                      className="bg-primary hover:bg-primary/90 w-full"
+                    >
+                      Start Session & Continue
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  }
+                />
+              </Card>
+            )}
+
+            {workflowStep === 'execute' && (
+              <div className="flex-1 flex flex-col [&>*]:flex-1">
+                <SessionControls
+                  config={sessionConfig}
+                  isRunning={isRunning}
+                  sessionInitialized={sessionInitialized}
+                  sessionSteps={sessionSteps}
+                  queueItems={executionQueue}
+                  queueStarted={queueStarted}
+                  queueStopped={queueStopped}
+                  onStart={handleStartSession}
+                  onReset={handleReset}
+                  onAddToQueue={handleAddToQueue}
+                  onRemoveFromQueue={handleRemoveFromQueue}
+                  onReorderQueue={handleReorderQueue}
+                  onClearQueue={handleClearQueue}
+                  onStop={handleStop}
+                  onResume={handleResume}
+                  onStartQueue={handleStartQueue}
+                />
               </div>
-            </div>
-          </Card>
-        )}
-
-        {workflowStep === 'execute' && (
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-            {/* Left Column - Controls and Status */}
-            <div className="space-y-6">
-              <SessionControls
-                config={sessionConfig}
-                isRunning={isRunning}
-                sessionInitialized={sessionInitialized}
-                sessionSteps={sessionSteps}
-                queueItems={executionQueue}
-                queueStarted={queueStarted}
-                queueStopped={queueStopped}
-                onStart={handleStartSession}
-                onReset={handleReset}
-                onAddToQueue={handleAddToQueue}
-                onRemoveFromQueue={handleRemoveFromQueue}
-                onReorderQueue={handleReorderQueue}
-                onClearQueue={handleClearQueue}
-                onStop={handleStop}
-                onResume={handleResume}
-                onStartQueue={handleStartQueue}
-              />
-
-            </div>
-
-            {/* Right Column - Preview */}
-            <div className="space-y-6">
-              <BrainScanPreview isActive={isRunning || sessionInitialized} />
-            </div>
+            )}
           </div>
-        )}
 
-        {/* Terminals card - show when any session is active */}
-        {/* Terminals persist when hidden (CSS visibility) to maintain WebSocket connections */}
-        {(murfiSessionActive || psychopySessionActive) && (
-          <Card className="p-4 md:p-5 bg-card border-border">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
-                  <Terminal className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-foreground">System terminals</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Badge variant="outline" className="text-[11px] font-medium">
-                  Murfi · {murfiTerminalStatus === 'connected' ? 'Running' : murfiTerminalStatus === 'connecting' ? 'Connecting...' : 'Disconnected'}
-                </Badge>
-                <Badge variant="outline" className="text-[11px] font-medium">
-                  PsychoPy · {psychopyTerminalStatus === 'connected' ? 'Running' : psychopyTerminalStatus === 'connecting' ? 'Connecting...' : 'Disconnected'}
-                </Badge>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setTerminalOpen(prev => !prev);
-                    executeButtonCommand('runScan.toggleTerminal');
-                  }}
-                  className="gap-1 text-muted-foreground"
-                >
-                  {terminalOpen ? 'Hide' : 'Show'}
-                  <ChevronDown
-                    className={`h-4 w-4 transition-transform ${terminalOpen ? 'rotate-180' : ''}`}
-                  />
-                </Button>
-              </div>
-            </div>
-
-            {/* Use CSS visibility to hide/show - keeps terminals mounted and WebSocket connections alive */}
-            <div className={cn("mt-4 grid grid-cols-1 md:grid-cols-2 gap-4", !terminalOpen && "hidden")}>
-              {murfiSessionActive && (
-                <div className="space-y-2">
-                  <div className="text-xs font-semibold text-foreground">Murfi</div>
-                  <div className="rounded-lg border border-border/60 overflow-hidden" style={{ height: '250px' }}>
-                    <XTerminal
-                      sessionId="murfi"
-                      onStatusChange={handleMurfiStatusChange}
-                      onReady={(handle) => {
-                        murfiTerminalRef.current = handle;
-                        registerTerminal('murfi', handle);
-                      }}
-                    />
+          {/* Right column - Terminals (always visible, single instance) */}
+          <div className="xl:flex-1 flex flex-col">
+            <Card className="p-4 md:p-5 bg-card border-border flex-1">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+                    <Terminal className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">System terminals</p>
                   </div>
                 </div>
-              )}
-              {psychopySessionActive && (
-                <div className="space-y-2">
-                  <div className="text-xs font-semibold text-foreground">PsychoPy</div>
-                  <div className="rounded-lg border border-border/60 overflow-hidden" style={{ height: '250px' }}>
-                    <XTerminal
-                      sessionId="psychopy"
-                      onStatusChange={handlePsychoPyStatusChange}
-                      onReady={(handle) => {
-                        psychopyTerminalRef.current = handle;
-                        registerTerminal('psychopy', handle);
-                      }}
-                    />
-                  </div>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-[11px] font-medium">
+                    Murfi · {murfiTerminalStatus === 'connected' ? 'Running' : murfiTerminalStatus === 'connecting' ? 'Connecting...' : 'Disconnected'}
+                  </Badge>
+                  <Badge variant="outline" className="text-[11px] font-medium">
+                    PsychoPy · {psychopyTerminalStatus === 'connected' ? 'Running' : psychopyTerminalStatus === 'connecting' ? 'Connecting...' : 'Disconnected'}
+                  </Badge>
                 </div>
-              )}
-            </div>
-          </Card>
-        )}
+              </div>
+
+              {/* Terminals stacked vertically */}
+              <div className="mt-4 flex flex-col gap-4">
+                {murfiSessionActive && (
+                  <div className="space-y-2">
+                    <div className="text-xs font-semibold text-foreground">Murfi</div>
+                    <div className="rounded-lg border border-border/60 overflow-hidden" style={{ height: '250px' }}>
+                      <XTerminal
+                        sessionId="murfi"
+                        onStatusChange={handleMurfiStatusChange}
+                        onReady={(handle) => {
+                          murfiTerminalRef.current = handle;
+                          registerTerminal('murfi', handle);
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+                {psychopySessionActive && (
+                  <div className="space-y-2">
+                    <div className="text-xs font-semibold text-foreground">PsychoPy</div>
+                    <div className="rounded-lg border border-border/60 overflow-hidden" style={{ height: '250px' }}>
+                      <XTerminal
+                        sessionId="psychopy"
+                        onStatusChange={handlePsychoPyStatusChange}
+                        onReady={(handle) => {
+                          psychopyTerminalRef.current = handle;
+                          registerTerminal('psychopy', handle);
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+                {/* Placeholder when no terminals are active */}
+                {!murfiSessionActive && !psychopySessionActive && (
+                  <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                    <Terminal className="h-12 w-12 mb-4 opacity-30" />
+                    <p className="text-sm">No active terminals</p>
+                    <p className="text-xs mt-1">Start Murfi and PsychoPy to see terminals here</p>
+                  </div>
+                )}
+              </div>
+            </Card>
+          </div>
+        </div>
       </div>
     </div>
   );
