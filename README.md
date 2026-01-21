@@ -116,11 +116,22 @@ These files define:
 
 ### Environment Variables
 
-Currently, the application uses default ports:
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `COMMANDS_CONFIG` | Commands config file to use (relative to `config/`) | `commands.yaml` |
+| `TERMINAL_HOST` | Host address for the terminal server | `127.0.0.1` |
+| `TERMINAL_AUTH_TOKEN` | Optional auth token for terminal connections | (none) |
+
+**Example: Using production commands**
+```bash
+COMMANDS_CONFIG=commands_production.yaml npm run dev:backend
+```
+
+**Default ports:**
 - Frontend: `8080`
 - Backend: `3001`
 
-To change these, modify:
+To change ports, modify:
 - `vite.config.ts` (frontend port)
 - `server/index.ts` (backend port)
 

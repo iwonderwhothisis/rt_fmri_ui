@@ -38,8 +38,10 @@ export function loadCommandsConfig(): CommandsConfig {
     // Get the directory of this file and navigate to config
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = dirname(__filename);
-    const configPath = join(__dirname, '..', 'config', 'commands.yaml');
+    const configFile = process.env.COMMANDS_CONFIG || 'commands.yaml';
+    const configPath = join(__dirname, '..', 'config', configFile);
 
+    console.log(`[CommandService] Using config file: ${configFile}`);
     console.log(`[CommandService] Loading config from: ${configPath}`);
 
     const fileContent = readFileSync(configPath, 'utf-8');
