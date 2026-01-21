@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Session } from '@/types/session';
 import { sessionService } from '@/services/mockSessionService';
-import { ArrowLeft, Download, Calendar, Clock, User, CheckCircle2, AlertCircle, BarChart3, Brain } from 'lucide-react';
+import { ArrowLeft, Calendar, Clock, User, CheckCircle2, AlertCircle, BarChart3, Brain } from 'lucide-react';
 import { StepHistory } from '@/components/StepHistory';
 import { BrainActivationMap } from '@/components/BrainActivationMap';
 import { SessionAnalytics } from '@/components/SessionAnalytics';
@@ -33,44 +33,6 @@ export default function SessionDetail() {
 
     loadSession();
   }, [sessionId]);
-
-  const handleExport = (format: 'json' | 'csv') => {
-    if (!session) return;
-
-    if (format === 'json') {
-      const dataStr = JSON.stringify(session, null, 2);
-      const dataBlob = new Blob([dataStr], { type: 'application/json' });
-      const url = URL.createObjectURL(dataBlob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `session_${session.id}_${session.config.sessionDate}.json`;
-      link.click();
-      URL.revokeObjectURL(url);
-    } else {
-      // CSV export for step history
-      const headers = ['Step', 'Status', 'Timestamp', 'Duration (s)', 'Message'];
-      const rows = session.stepHistory.map(step => [
-        step.step,
-        step.status,
-        step.timestamp,
-        step.duration?.toString() || '',
-        step.message || ''
-      ]);
-
-      const csvContent = [
-        headers.join(','),
-        ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
-      ].join('\n');
-
-      const dataBlob = new Blob([csvContent], { type: 'text/csv' });
-      const url = URL.createObjectURL(dataBlob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `session_${session.id}_steps.csv`;
-      link.click();
-      URL.revokeObjectURL(url);
-    }
-  };
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -135,16 +97,6 @@ export default function SessionDetail() {
             <Button variant="ghost" onClick={() => navigate('/')}>
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to Run Scan
-            </Button>
-            <Button variant="outline" onClick={() => handleExport('json')} className="border-border">
-              <Download className="mr-2 h-4 w-4" />
-              <span className="hidden sm:inline">Export JSON</span>
-              <span className="sm:hidden">JSON</span>
-            </Button>
-            <Button variant="outline" onClick={() => handleExport('csv')} className="border-border">
-              <Download className="mr-2 h-4 w-4" />
-              <span className="hidden sm:inline">Export CSV</span>
-              <span className="sm:hidden">CSV</span>
             </Button>
           </div>
         </div>
