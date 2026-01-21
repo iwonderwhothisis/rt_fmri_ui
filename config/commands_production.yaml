@@ -1,0 +1,219 @@
+# Neuro-Orch Command Configuration
+# This file maps buttons and actions to bash commands
+
+# System initialization commands
+# These run when "Start Murfi" or "Start PsychoPy" buttons are clicked
+systems:
+  murfi:
+    name: "Murfi"
+    description: "Real-time fMRI processing system"
+    startCommand: "echo 'Starting Murfi...' && sleep 1 && echo 'Murfi ready'"
+
+  psychopy:
+    name: "PsychoPy"
+    description: "Task presentation system"
+    startCommand: "echo 'Starting PsychoPy...' && sleep 1 && echo 'PsychoPy ready'"
+
+# Session step commands
+# These run when steps are executed from the queue
+# terminal: which terminal to run the command in (murfi or psychopy)
+# command: the bash command to execute
+#
+# Available variables for command substitution:
+#   ${participantId}      - Participant identifier (e.g., "remind0001")
+#   ${sessionDate}        - Session date in YYYY-MM-DD format
+#   ${protocol}           - Protocol name (e.g., "DMN-NFB")
+#   ${displayFeedback}    - "Feedback" or "No Feedback"
+#   ${participantAnchor}  - Free text anchor value entered by user
+#   ${feedbackCondition}  - Duration: "5min", "10min", "15min", "20min", or "30min"
+steps:
+  create:
+    name: "Create Participant"
+    terminal: "murfi"
+    command: "source createxml.sh ${participantId} setup"
+
+  setup:
+    name: "Setup Session"
+    terminal: "murfi"
+    command: "source feedback.sh ${participantId} setup"
+
+  2vol:
+    name: "2 Volume Calibration"
+    terminal: "murfi"
+    command: "source feedback.sh ${participantId} 2vol"
+
+  resting_state:
+    name: "Resting State"
+    terminal: "murfi"
+    command: "source feedback.sh ${participantId} resting_state"
+
+  extract_rs_networks:
+    name: "Extract RS Networks"
+    terminal: "murfi"
+    command: "source feedback.sh ${participantId} extract_rs_networks"
+
+  process_roi_masks:
+    name: "Process ROI Masks"
+    terminal: "murfi"
+    command: "source feedback.sh ${participantId} process_roi_masks"
+
+  register:
+    name: "Registration"
+    terminal: "murfi"
+    command: "source feedback.sh ${participantId} register"
+
+  feedback:
+    name: "Feedback"
+    terminal: "murfi"
+    command: "source feedback.sh ${participantId} feedback"
+
+  cleanup:
+    name: "Cleanup"
+    terminal: "murfi"
+    command: "source feedback.sh ${participantId} cleanup"
+
+  backup_reg_mni_masks_to_2vol:
+    name: "Backup Reg MNI Masks to 2vol"
+    terminal: "murfi"
+    command: "source feedback.sh ${participantId} backup_reg_mni_masks_to_2vol"
+
+# Additional custom actions (optional)
+actions:
+  stopAll:
+    name: "Stop All Processes"
+    terminals:
+      - murfi
+      - psychopy
+    command: "echo 'Stopping...'"
+
+# Default behavior for buttons not explicitly configured
+defaults:
+  button:
+    terminal: murfi
+    command: "echo 'Button ${buttonId} pressed'"
+
+# Button command configuration
+# Each button can have an optional command that runs IN ADDITION to its default behavior
+# terminal: murfi (default) or psychopy
+# command: bash command to execute (supports ${variable} substitution)
+buttons:
+  # Initialize Step buttons
+  initialize.startMurfi:
+    terminal: murfi
+    command: "echo 'Starting Murfi system...'"
+
+  initialize.startPsychoPy:
+    terminal: psychopy
+    command: "echo 'Starting PsychoPy system...'"
+
+  initialize.proceed:
+    terminal: murfi
+    command: "echo 'Proceeding to participant selection'"
+
+  # Participant Selector buttons
+  participant.addNew:
+    terminal: murfi
+    command: "echo 'Opening new participant form'"
+
+  participant.create:
+    terminal: murfi
+    command: "echo 'Creating participant: ${participantId}'"
+
+  participant.cancel:
+    terminal: murfi
+    command: "echo 'Cancelled participant creation'"
+
+  participant.select:
+    terminal: murfi
+    command: "echo 'Selected participant: ${participantId}'"
+
+  # RunScan buttons
+  runScan.setup:
+    terminal: murfi
+    command: "echo 'Running setup for participant ${participantId}'"
+
+  runScan.toggleTerminal:
+    terminal: murfi
+    command: "echo 'Terminal panel toggled'"
+
+  # Session Controls buttons
+  session.start:
+    terminal: murfi
+    command: "echo 'Starting session for participant ${participantId}'"
+
+  session.reset:
+    terminal: murfi
+    command: "echo 'Session reset'"
+
+  session.startQueue:
+    terminal: murfi
+    command: "echo 'Starting execution queue'"
+
+  session.resume:
+    terminal: murfi
+    command: "echo 'Resuming execution queue'"
+
+  session.stop:
+    terminals:
+      - murfi
+      - psychopy
+    command: "echo 'STOP signal sent'"
+
+  session.clear:
+    terminal: murfi
+    command: "echo 'Queue cleared'"
+
+  session.finish:
+    terminal: murfi
+    command: "echo 'Session completed'"
+
+  # Queue Item buttons
+  queue.remove:
+    terminal: murfi
+    command: "echo 'Removed ${stepName} from queue'"
+
+  # Step Pipeline buttons
+  stepPipeline.toggleHistory:
+    terminal: murfi
+    command: "echo 'Toggled execution history'"
+
+  # Workflow Stepper buttons
+  workflow.stepClick:
+    terminal: murfi
+    command: "echo 'Navigated to workflow step: ${stepId}'"
+
+  # Session Card buttons
+  sessionCard.viewDetails:
+    terminal: murfi
+    command: "echo 'Viewing session details: ${sessionId}'"
+
+  # Session Detail buttons
+  sessionDetail.back:
+    terminal: murfi
+    command: "echo 'Navigating back'"
+
+  sessionDetail.exportJson:
+    terminal: murfi
+    command: "echo 'Exporting session ${sessionId} as JSON'"
+
+  sessionDetail.exportCsv:
+    terminal: murfi
+    command: "echo 'Exporting session ${sessionId} as CSV'"
+
+  # Navigation buttons
+  nav.runScan:
+    terminal: murfi
+    command: "echo 'Navigated to Run Scan'"
+
+  nav.help:
+    terminal: murfi
+    command: "echo 'Help requested'"
+
+  # Session Card buttons
+  sessionCard.click:
+    terminal: murfi
+    command: "echo 'Clicked session card: ${sessionId}'"
+
+  sessionCard.select:
+    terminal: murfi
+    command: "echo 'Session ${sessionId} selection changed to: ${selected}'"

@@ -214,15 +214,21 @@ export default function RunScan() {
   const [setupRan, setSetupRan] = useState(false);
 
   const handleSetup = () => {
+    const variables: Record<string, string> = {
+      participantId: sessionConfig?.participantId || '',
+      sessionDate: sessionConfig?.sessionDate || '',
+      protocol: sessionConfig?.protocol || '',
+      displayFeedback: sessionConfig?.psychopyConfig?.displayFeedback || '',
+      participantAnchor: sessionConfig?.psychopyConfig?.participantAnchor || '',
+      feedbackCondition: sessionConfig?.psychopyConfig?.feedbackCondition || '',
+    };
+
     // Execute button command (fire-and-forget)
-    executeButtonCommand('runScan.setup', { participantId: sessionConfig?.participantId || '' });
+    executeButtonCommand('runScan.setup', variables);
 
     // Also send the step command from config if available
     const stepConfig = commandsConfig?.steps['setup'];
     if (stepConfig) {
-      const variables: Record<string, string> = {
-        participantId: sessionConfig?.participantId || '',
-      };
       const command = substituteVariables(stepConfig.command, variables);
       sendCommandToTerminal(stepConfig.terminal, command);
     }
@@ -266,6 +272,11 @@ export default function RunScan() {
       if (stepConfig) {
         const variables: Record<string, string> = {
           participantId: sessionConfig?.participantId || '',
+          sessionDate: sessionConfig?.sessionDate || '',
+          protocol: sessionConfig?.protocol || '',
+          displayFeedback: sessionConfig?.psychopyConfig?.displayFeedback || '',
+          participantAnchor: sessionConfig?.psychopyConfig?.participantAnchor || '',
+          feedbackCondition: sessionConfig?.psychopyConfig?.feedbackCondition || '',
         };
         const command = substituteVariables(stepConfig.command, variables);
         const result = await executeTrackedCommand(stepConfig.terminal, command);
@@ -459,6 +470,11 @@ export default function RunScan() {
       if (stepConfig) {
         const variables: Record<string, string> = {
           participantId: sessionConfig?.participantId || '',
+          sessionDate: sessionConfig?.sessionDate || '',
+          protocol: sessionConfig?.protocol || '',
+          displayFeedback: sessionConfig?.psychopyConfig?.displayFeedback || '',
+          participantAnchor: sessionConfig?.psychopyConfig?.participantAnchor || '',
+          feedbackCondition: sessionConfig?.psychopyConfig?.feedbackCondition || '',
         };
         const command = substituteVariables(stepConfig.command, variables);
         const result = await executeTrackedCommand(stepConfig.terminal, command);
