@@ -19,7 +19,7 @@ import {
 } from '@dnd-kit/sortable';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Play, RotateCcw, AlertCircle, Check, Square, Trash2, GripVertical } from 'lucide-react';
+import { Play, RotateCcw, AlertCircle, Check, Square, GripVertical } from 'lucide-react';
 import { SessionConfig, SessionStep } from '@/types/session';
 import { QueueItem } from '@/components/ExecutionQueue';
 import { QueueItemCard } from '@/components/ExecutionQueue';
@@ -32,8 +32,6 @@ interface SessionControlsProps {
   sessionInitialized: boolean;
   sessionSteps: SessionStep[];
   queueItems: QueueItem[];
-  queueStarted: boolean;
-  queueStopped: boolean;
   onStart: () => void;
   onReset: () => void;
   onAddToQueue: (step: SessionStep) => void;
@@ -41,7 +39,6 @@ interface SessionControlsProps {
   onReorderQueue: (startIndex: number, endIndex: number) => void;
   onClearQueue: () => void;
   onStop: () => void;
-  onResume: () => void;
   onStartQueue: () => void;
 }
 
@@ -112,8 +109,6 @@ export function SessionControls({
   sessionInitialized,
   sessionSteps,
   queueItems,
-  queueStarted,
-  queueStopped,
   onStart,
   onReset,
   onAddToQueue,
@@ -121,7 +116,6 @@ export function SessionControls({
   onReorderQueue,
   onClearQueue,
   onStop,
-  onResume,
   onStartQueue,
 }: SessionControlsProps) {
   const isConfigValid = config?.participantId && config?.psychopyConfig;
@@ -131,9 +125,7 @@ export function SessionControls({
   const startCmd = useButtonCommand('session.start');
   const resetCmd = useButtonCommand('session.reset');
   const startQueueCmd = useButtonCommand('session.startQueue');
-  const resumeCmd = useButtonCommand('session.resume');
   const stopCmd = useButtonCommand('session.stop');
-  const clearCmd = useButtonCommand('session.clear');
   const finishCmd = useButtonCommand('session.finish');
 
   const handleStart = () => {
@@ -151,19 +143,9 @@ export function SessionControls({
     startQueueCmd.execute();
   };
 
-  const handleResume = () => {
-    onResume();
-    resumeCmd.execute();
-  };
-
   const handleStop = () => {
     onStop();
     stopCmd.execute();
-  };
-
-  const handleClear = () => {
-    onClearQueue();
-    clearCmd.execute();
   };
 
   const handleFinish = () => {
@@ -303,48 +285,25 @@ export function SessionControls({
                   </span>
                   {queueItems.length > 0 && (
                     <>
-                      {!queueStarted ? (
-                        <Button
-                          variant="default"
-                          size="sm"
-                          onClick={handleStartQueue}
-                          className="h-7 bg-primary hover:bg-primary/90"
-                          disabled={pendingCount === 0}
-                        >
-                          <Play className="h-3 w-3 mr-1" />
-                          Start Queue
-                        </Button>
-                      ) : queueStopped ? (
-                        <Button
-                          variant="default"
-                          size="sm"
-                          onClick={handleResume}
-                          className="h-7 bg-primary hover:bg-primary/90"
-                        >
-                          <Play className="h-3 w-3 mr-1" />
-                          Resume
-                        </Button>
-                      ) : (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={handleStop}
-                          className="h-7 text-destructive hover:text-destructive"
-                          disabled={runningCount === 0}
-                        >
-                          <Square className="h-3 w-3 mr-1" />
-                          Stop
-                        </Button>
-                      )}
+                      <Button
+                        variant="default"
+                        size="sm"
+                        onClick={handleStartQueue}
+                        className="h-7 bg-primary hover:bg-primary/90"
+                        disabled={pendingCount === 0 || runningCount > 0}
+                      >
+                        <Play className="h-3 w-3 mr-1" />
+                        Run Next
+                      </Button>
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={handleClear}
+                        onClick={handleStop}
                         className="h-7 text-destructive hover:text-destructive"
-                        disabled={runningCount > 0}
+                        disabled={runningCount === 0}
                       >
-                        <Trash2 className="h-3 w-3 mr-1" />
-                        Clear
+                        <Square className="h-3 w-3 mr-1" />
+                        Stop
                       </Button>
                     </>
                   )}

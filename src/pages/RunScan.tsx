@@ -437,11 +437,11 @@ export default function RunScan() {
   };
 
   const handleResume = () => {
-    setQueueStopped(false);
+    runNextQueueItem();
   };
 
   const handleStartQueue = () => {
-    setQueueStarted(true);
+    runNextQueueItem();
   };
 
   // Execute a queue item
@@ -566,9 +566,9 @@ export default function RunScan() {
     }
   }, [commandsConfig, sessionConfig?.participantId, substituteVariables, executeTrackedCommand, markHistoryFailed]);
 
-  // Auto-execution logic
-  useEffect(() => {
-    if (!queueStarted || !sessionInitialized || queueStopped) return;
+  // Run next item in queue (manual execution - one item at a time)
+  const runNextQueueItem = useCallback(() => {
+    if (!sessionInitialized || isRunning) return;
 
     const pendingItem = executionQueue.find(item => item.status === 'pending');
     const runningItem = executionQueue.find(item => item.status === 'running');
@@ -577,10 +577,12 @@ export default function RunScan() {
     if (runningItem) return;
 
     // If there's a pending item and nothing running, execute it
-    if (pendingItem && !isRunning) {
+    if (pendingItem) {
+      setQueueStarted(true);
+      setQueueStopped(false);
       executeQueueItem(pendingItem);
     }
-  }, [executionQueue, queueStarted, queueStopped, sessionInitialized, isRunning, executeQueueItem]);
+  }, [executionQueue, sessionInitialized, isRunning, executeQueueItem]);
 
   const handleStartSession = async () => {
     if (!sessionConfig) return;
@@ -862,8 +864,6 @@ export default function RunScan() {
                   sessionInitialized={sessionInitialized}
                   sessionSteps={sessionSteps}
                   queueItems={executionQueue}
-                  queueStarted={queueStarted}
-                  queueStopped={queueStopped}
                   onStart={handleStartSession}
                   onReset={handleReset}
                   onAddToQueue={handleAddToQueue}
@@ -871,7 +871,6 @@ export default function RunScan() {
                   onReorderQueue={handleReorderQueue}
                   onClearQueue={handleClearQueue}
                   onStop={handleStop}
-                  onResume={handleResume}
                   onStartQueue={handleStartQueue}
                 />
               </div>
