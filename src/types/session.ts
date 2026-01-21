@@ -1,8 +1,6 @@
 export interface Participant {
   id: string;
-  name: string;
-  age: number;
-  lastSession?: string;
+  anchor: string;
 }
 
 export type SessionStep =
