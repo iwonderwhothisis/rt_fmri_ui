@@ -195,12 +195,23 @@ export default function RunScan() {
     });
   }, []);
 
-  const handleParticipantSelect = (participantId: string, isNewParticipant: boolean = false) => {
+  const handleParticipantSelect = async (participantId: string, isNewParticipant: boolean = false) => {
+    // Fetch participant data to get their stored anchor
+    const participant = await sessionService.getParticipant(participantId);
+    const participantAnchor = participant?.anchor || '';
+
+    // Update psychopy config with the participant's anchor
+    const updatedPsychopyConfig = {
+      ...psychopyConfig,
+      participantAnchor,
+    };
+    setPsychopyConfig(updatedPsychopyConfig);
+
     setSessionConfig({
       participantId,
       sessionDate: new Date().toISOString().split('T')[0],
       protocol: 'DMN-NFB',
-      psychopyConfig,
+      psychopyConfig: updatedPsychopyConfig,
     });
     setSetupCompleted(false);
     setSetupRan(false);
@@ -241,13 +252,24 @@ export default function RunScan() {
     setManualWorkflowStep('configure');
   };
 
-  const handlePsychoPyConfigChange = (config: PsychoPyConfig) => {
+  const handlePsychoPyConfigChange = async (config: PsychoPyConfig) => {
     setPsychopyConfig(config);
     if (sessionConfig) {
       setSessionConfig({
         ...sessionConfig,
         psychopyConfig: config,
       });
+
+      // Save the anchor back to the participant's record
+      if (config.participantAnchor !== psychopyConfig.participantAnchor) {
+        try {
+          await sessionService.updateParticipant(sessionConfig.participantId, {
+            anchor: config.participantAnchor,
+          });
+        } catch (error) {
+          console.error('Failed to save participant anchor:', error);
+        }
+      }
     }
   };
 

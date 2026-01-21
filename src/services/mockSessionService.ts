@@ -1,13 +1,7 @@
 import { Participant, Session, SessionStep, SessionStepHistory } from '@/types/session';
+import { buildApiUrl } from '@/lib/apiBase';
 
-// Mock participants database
-const mockParticipants: Participant[] = [
-  { id: '001', name: 'Alex Johnson', age: 14, lastSession: '2024-11-15' },
-  { id: '002', name: 'Sam Chen', age: 12, lastSession: '2024-11-20' },
-  { id: '003', name: 'Jordan Lee', age: 15, lastSession: '2024-11-28' },
-];
-
-// Mock previous sessions
+// Mock previous sessions (sessions still use in-memory storage)
 const mockPreviousSessions: Session[] = [
   {
     id: 'S001',
@@ -33,27 +27,70 @@ const mockPreviousSessions: Session[] = [
 ];
 
 export const sessionService = {
-  // Get all participants
+  // Get all participants from CSV via API
   getParticipants: async (): Promise<Participant[]> => {
-    await new Promise(resolve => setTimeout(resolve, 300));
-    return mockParticipants;
+    const response = await fetch(buildApiUrl('/api/participants'));
+    if (!response.ok) {
+      throw new Error('Failed to fetch participants');
+    }
+    return response.json();
   },
 
-  // Get participant by ID
+  // Get participant by ID from CSV via API
   getParticipant: async (id: string): Promise<Participant | undefined> => {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    return mockParticipants.find(p => p.id === id);
+    const response = await fetch(buildApiUrl(`/api/participants/${id}`));
+    if (response.status === 404) {
+      return undefined;
+    }
+    if (!response.ok) {
+      throw new Error('Failed to fetch participant');
+    }
+    return response.json();
   },
 
-  // Create new participant
+  // Create new participant in CSV via API
   createParticipant: async (participant: Participant): Promise<Participant> => {
-    await new Promise(resolve => setTimeout(resolve, 400));
-    // Check if ID already exists
-    if (mockParticipants.some(p => p.id === participant.id)) {
+    const response = await fetch(buildApiUrl('/api/participants'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(participant),
+    });
+    if (response.status === 409) {
       throw new Error('Participant ID already exists');
     }
-    mockParticipants.push(participant);
-    return participant;
+    if (!response.ok) {
+      throw new Error('Failed to create participant');
+    }
+    return response.json();
+  },
+
+  // Update participant in CSV via API (anchor only, ID is immutable)
+  updateParticipant: async (id: string, updates: { anchor?: string }): Promise<Participant> => {
+    const response = await fetch(buildApiUrl(`/api/participants/${id}`), {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates),
+    });
+    if (response.status === 404) {
+      throw new Error('Participant not found');
+    }
+    if (!response.ok) {
+      throw new Error('Failed to update participant');
+    }
+    return response.json();
+  },
+
+  // Delete participant from CSV via API
+  deleteParticipant: async (id: string): Promise<void> => {
+    const response = await fetch(buildApiUrl(`/api/participants/${id}`), {
+      method: 'DELETE',
+    });
+    if (response.status === 404) {
+      throw new Error('Participant not found');
+    }
+    if (!response.ok) {
+      throw new Error('Failed to delete participant');
+    }
   },
 
   // Get previous sessions

@@ -4,6 +4,7 @@ import { createServer } from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
 import { TerminalManager } from './terminalManager.js';
 import { loadCommandsConfig, getSystemCommand } from './commandService.js';
+import * as participantService from './participantService.js';
 
 const app = express();
 const PORT = 3001;
@@ -39,6 +40,79 @@ app.get('/api/config/commands', (_req, res) => {
   } catch (error) {
     console.error('[Server] Error loading commands config:', error);
     res.status(500).json({ error: 'Failed to load commands configuration' });
+  }
+});
+
+// Participant API endpoints
+app.get('/api/participants', (_req, res) => {
+  try {
+    const participants = participantService.getParticipants();
+    res.json(participants);
+  } catch (error) {
+    console.error('[Server] Error getting participants:', error);
+    res.status(500).json({ error: 'Failed to get participants' });
+  }
+});
+
+app.get('/api/participants/:id', (req, res) => {
+  try {
+    const participant = participantService.getParticipant(req.params.id);
+    if (!participant) {
+      res.status(404).json({ error: 'Participant not found' });
+      return;
+    }
+    res.json(participant);
+  } catch (error) {
+    console.error('[Server] Error getting participant:', error);
+    res.status(500).json({ error: 'Failed to get participant' });
+  }
+});
+
+app.post('/api/participants', (req, res) => {
+  try {
+    const { id, anchor } = req.body;
+    if (!id) {
+      res.status(400).json({ error: 'Participant ID is required' });
+      return;
+    }
+    const participant = participantService.createParticipant({ id, anchor: anchor || '' });
+    res.status(201).json(participant);
+  } catch (error) {
+    console.error('[Server] Error creating participant:', error);
+    if (error instanceof Error && error.message.includes('already exists')) {
+      res.status(409).json({ error: error.message });
+    } else {
+      res.status(500).json({ error: 'Failed to create participant' });
+    }
+  }
+});
+
+app.put('/api/participants/:id', (req, res) => {
+  try {
+    const { anchor } = req.body;
+    const participant = participantService.updateParticipant(req.params.id, { anchor });
+    res.json(participant);
+  } catch (error) {
+    console.error('[Server] Error updating participant:', error);
+    if (error instanceof Error && error.message.includes('not found')) {
+      res.status(404).json({ error: error.message });
+    } else {
+      res.status(500).json({ error: 'Failed to update participant' });
+    }
+  }
+});
+
+app.delete('/api/participants/:id', (req, res) => {
+  try {
+    participantService.deleteParticipant(req.params.id);
+    res.status(204).send();
+  } catch (error) {
+    console.error('[Server] Error deleting participant:', error);
+    if (error instanceof Error && error.message.includes('not found')) {
+      res.status(404).json({ error: error.message });
+    } else {
+      res.status(500).json({ error: 'Failed to delete participant' });
+    }
   }
 });
 

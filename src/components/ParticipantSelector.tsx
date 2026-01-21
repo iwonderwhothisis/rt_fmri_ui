@@ -55,7 +55,11 @@ export function ParticipantSelector({ onParticipantSelect, selectedParticipantId
   const loadParticipants = async () => {
     try {
       const data = await sessionService.getParticipants();
-      setParticipants(data);
+      // Deduplicate by ID as a safeguard against race conditions
+      const uniqueParticipants = data.filter(
+        (p, index, self) => self.findIndex(x => x.id === p.id) === index
+      );
+      setParticipants(uniqueParticipants);
     } catch (error) {
       toast.error('Failed to load participants', {
         description: 'Please try refreshing the page.',
@@ -94,11 +98,11 @@ export function ParticipantSelector({ onParticipantSelect, selectedParticipantId
     try {
       const created = await sessionService.createParticipant({
         id: trimmedId,
-        name: '',
-        age: 0,
+        anchor: '',
       });
-      // Update local state directly - no need to refetch
-      setParticipants(prev => [...prev, created]);
+      // Refetch to ensure consistency with service data and avoid duplicates
+      const updatedParticipants = await sessionService.getParticipants();
+      setParticipants(updatedParticipants);
       onParticipantSelect(created.id, true);
       setShowNewForm(false);
       setNewParticipantId('');
