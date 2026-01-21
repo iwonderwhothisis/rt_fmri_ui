@@ -221,26 +221,11 @@ export function XTerminal({
       console.error('[XTerminal] WebSocket error:', err);
     };
 
-    // Forward terminal input to WebSocket
+    // Forward terminal input to WebSocket (PTY handles echo)
     const dataDisposable = term.onData((data) => {
       if (ws.readyState === WebSocket.OPEN) {
-        // Local echo since we don't have PTY
-        if (data === '\r') {
-          // Enter key - show newline locally and send \n to shell
-          term.write('\r\n');
-          const msg: ClientMessage = { type: 'input', sessionId, data: '\n' };
-          ws.send(JSON.stringify(msg));
-        } else if (data === '\x7f') {
-          // Backspace - handle locally
-          term.write('\b \b');
-          const msg: ClientMessage = { type: 'input', sessionId, data };
-          ws.send(JSON.stringify(msg));
-        } else {
-          // Echo character locally and send to shell
-          term.write(data);
-          const msg: ClientMessage = { type: 'input', sessionId, data };
-          ws.send(JSON.stringify(msg));
-        }
+        const msg: ClientMessage = { type: 'input', sessionId, data };
+        ws.send(JSON.stringify(msg));
       }
     });
 
