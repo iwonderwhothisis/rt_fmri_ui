@@ -7,7 +7,7 @@ systems:
   murfi:
     name: "Murfi"
     description: "Real-time fMRI processing system"
-    startCommand: "echo 'Starting Murfi...' && sleep 1 && echo 'Murfi ready'"
+    startCommand: "psychopy && cd /home/c-brain-ubuntu-1/Documents/Nerofeesback/NEBneurofeedback/murf-rt-PyProject/scripts"
 
   psychopy:
     name: "PsychoPy"
