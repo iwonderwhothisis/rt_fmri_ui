@@ -14,7 +14,8 @@ export type SessionStep =
   | 'process_roi_masks'
   | 'register'
   | 'feedback'
-  | 'cleanup';
+  | 'cleanup'
+  | 'backup_reg_mni_masks_to_2vol';
 
 export type StepStatus = 'pending' | 'running' | 'completed' | 'failed';
 
