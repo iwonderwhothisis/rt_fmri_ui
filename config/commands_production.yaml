@@ -12,7 +12,7 @@ systems:
   psychopy:
     name: "PsychoPy"
     description: "Task presentation system"
-    startCommand: "echo 'Starting PsychoPy...' && sleep 1 && echo 'PsychoPy ready'"
+    startCommand: "psychopy"
 
 # Session step commands
 # These run when steps are executed from the queue
@@ -23,6 +23,7 @@ systems:
 #   ${participantId}      - Participant identifier (e.g., "remind0001")
 #   ${sessionDate}        - Session date in YYYY-MM-DD format
 #   ${protocol}           - Protocol name (e.g., "DMN-NFB")
+#   ${runNumber}          - Auto-incremented feedback run number (1, 2, 3...)
 #   ${displayFeedback}    - "Feedback" or "No Feedback"
 #   ${participantAnchor}  - Free text anchor value entered by user
 #   ${feedbackCondition}  - Duration: "5min", "10min", "15min", "20min", or "30min"
@@ -64,8 +65,8 @@ steps:
 
   feedback:
     name: "Feedback"
-    terminal: "murfi"
-    command: "source feedback.sh ${participantId} feedback"
+    terminal: "psychopy"
+    command: "python rt-network_feedback.py ${participantId} ${runNumber} ${displayFeedback} ${feedbackCondition} ${participantAnchor}"
 
   cleanup:
     name: "Cleanup"
