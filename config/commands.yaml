@@ -12,12 +12,21 @@ systems:
   psychopy:
     name: "PsychoPy"
     description: "Task presentation system"
-    startCommand: "echo 'Starting PsychoPy...' && sleep 1 && echo 'PsychoPy ready'"
+    startCommand: "psychopy"
 
 # Session step commands
 # These run when steps are executed from the queue
 # terminal: which terminal to run the command in (murfi or psychopy)
 # command: the bash command to execute
+#
+# Available variables for command substitution:
+#   ${participantId}      - Participant identifier (e.g., "remind0001")
+#   ${sessionDate}        - Session date in YYYY-MM-DD format
+#   ${protocol}           - Protocol name (e.g., "DMN-NFB")
+#   ${runNumber}          - Auto-incremented feedback run number (1, 2, 3...)
+#   ${displayFeedback}    - "Feedback" or "No Feedback"
+#   ${participantAnchor}  - Free text anchor value entered by user
+#   ${feedbackCondition}  - Duration: "5min", "10min", "15min", "20min", or "30min"
 steps:
   create:
     name: "Create Participant"
@@ -57,7 +66,7 @@ steps:
   feedback:
     name: "Feedback"
     terminal: "psychopy"
-    command: "echo 'Running feedback session...'"
+    command: "echo 'Running feedback session: participant=${participantId} run=${runNumber} feedback=${displayFeedback} condition=${feedbackCondition} anchor=${participantAnchor}'"
 
   cleanup:
     name: "Cleanup"
