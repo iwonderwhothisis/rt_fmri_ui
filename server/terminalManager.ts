@@ -1,10 +1,10 @@
-import { spawn, ChildProcess } from 'child_process';
+import * as pty from 'node-pty';
 
 // Unique marker that won't appear in normal output
 const COMMAND_MARKER_PREFIX = '__NEURO_ORCH_CMD_DONE__';
 
 interface TerminalSession {
-  process: ChildProcess;
+  pty: pty.IPty;
   createdAt: Date;
   outputBuffer: string;
 }
@@ -18,30 +18,23 @@ export class TerminalManager {
     onExit: (code: number) => void,
     onCommandComplete: (commandId: string, exitCode: number) => void,
     initialCommand?: string
-  ): ChildProcess | null {
+  ): pty.IPty | null {
     // Kill existing session if it exists
     if (this.sessions.has(id)) {
       this.destroy(id);
     }
 
-    const shell = process.env.SHELL || '/bin/zsh';
+    const shell = process.env.SHELL || (process.platform === 'win32' ? 'powershell.exe' : '/bin/bash');
     console.log(`[TerminalManager] Spawning shell: ${shell}`);
 
-    let childProcess: ChildProcess;
+    let ptyProcess: pty.IPty;
     try {
-      // Spawn shell as a login shell for proper initialization
-      childProcess = spawn(shell, ['-l'], {
+      ptyProcess = pty.spawn(shell, [], {
+        name: 'xterm-256color',
+        cols: 80,
+        rows: 24,
         cwd: process.env.HOME || process.cwd(),
-        env: {
-          ...process.env,
-          TERM: 'xterm-256color',
-          COLORTERM: 'truecolor',
-          // Force color output even without TTY
-          CLICOLOR_FORCE: '1',
-          FORCE_COLOR: '1',
-        },
-        stdio: ['pipe', 'pipe', 'pipe'],
-        detached: true,
+        env: process.env as { [key: string]: string },
       });
     } catch (error) {
       console.error(`[TerminalManager] Failed to spawn shell:`, error);
@@ -49,51 +42,29 @@ export class TerminalManager {
       return null;
     }
 
-    if (!childProcess.stdout || !childProcess.stdin) {
-      console.error(`[TerminalManager] Shell stdio not available`);
-      onExit(-1);
-      return null;
-    }
-
-    // Send a welcome message and show we're connected
-    onData(`\x1b[32m[Terminal connected to ${shell}]\x1b[0m\r\n`);
-
     const session: TerminalSession = {
-      process: childProcess,
+      pty: ptyProcess,
       createdAt: new Date(),
       outputBuffer: '',
     };
 
-    // Handle stdout with marker detection
-    childProcess.stdout.on('data', (data: Buffer) => {
-      const output = data.toString();
-
+    // Handle output with marker detection
+    ptyProcess.onData((data: string) => {
       // Check for command completion markers and notify
-      this.parseCommandCompletions(id, output, onCommandComplete);
+      this.parseCommandCompletions(id, data, onCommandComplete);
 
       // Filter out the marker lines before sending to client
-      const filteredOutput = this.filterMarkers(output);
+      const filteredOutput = this.filterMarkers(data);
       if (filteredOutput) {
         onData(filteredOutput);
       }
     });
 
-    // Handle stderr
-    childProcess.stderr?.on('data', (data: Buffer) => {
-      onData(data.toString());
-    });
-
     // Handle exit
-    childProcess.on('exit', (code) => {
-      console.log(`[TerminalManager] Shell exited with code: ${code}`);
+    ptyProcess.onExit(({ exitCode }) => {
+      console.log(`[TerminalManager] Shell exited with code: ${exitCode}`);
       this.sessions.delete(id);
-      onExit(code ?? 0);
-    });
-
-    childProcess.on('error', (error) => {
-      console.error(`[TerminalManager] Shell error:`, error);
-      this.sessions.delete(id);
-      onExit(-1);
+      onExit(exitCode);
     });
 
     this.sessions.set(id, session);
@@ -102,12 +73,12 @@ export class TerminalManager {
     if (initialCommand) {
       setTimeout(() => {
         console.log(`[TerminalManager] Sending initial command: ${initialCommand}`);
-        childProcess.stdin?.write(initialCommand + '\n');
+        ptyProcess.write(initialCommand + '\r');
       }, 200);
     }
 
     console.log(`[TerminalManager] Session ${id} created successfully`);
-    return childProcess;
+    return ptyProcess;
   }
 
   /**
@@ -119,17 +90,16 @@ export class TerminalManager {
     commandId: string
   ): void {
     const session = this.sessions.get(sessionId);
-    if (!session?.process.stdin) {
+    if (!session) {
       console.error(`[TerminalManager] Session ${sessionId} not found`);
       return;
     }
 
     // Wrap command to output exit code with unique marker when done
-    // Format: command; echo "__NEURO_ORCH_CMD_DONE__<commandId>:$?"
     const wrappedCommand = `${command}; echo "${COMMAND_MARKER_PREFIX}${commandId}:$?"`;
 
     console.log(`[TerminalManager] Executing tracked command ${commandId}: ${command}`);
-    session.process.stdin.write(wrappedCommand + '\n');
+    session.pty.write(wrappedCommand + '\r');
   }
 
   /**
@@ -183,19 +153,22 @@ export class TerminalManager {
 
   write(id: string, data: string): void {
     const session = this.sessions.get(id);
-    if (session?.process.stdin) {
-      session.process.stdin.write(data);
+    if (session) {
+      session.pty.write(data);
     }
   }
 
-  resize(_id: string, _cols: number, _rows: number): void {
-    // Resize not supported with child_process approach
+  resize(id: string, cols: number, rows: number): void {
+    const session = this.sessions.get(id);
+    if (session) {
+      session.pty.resize(cols, rows);
+    }
   }
 
   destroy(id: string): void {
     const session = this.sessions.get(id);
     if (session) {
-      this.killProcessGroup(session.process);
+      session.pty.kill();
       this.sessions.delete(id);
     }
   }
@@ -212,28 +185,5 @@ export class TerminalManager {
 
   getSessionIds(): string[] {
     return Array.from(this.sessions.keys());
-  }
-
-  private killProcessGroup(child: ChildProcess): void {
-    const pid = child.pid;
-    if (!pid) {
-      child.kill();
-      return;
-    }
-
-    try {
-      if (process.platform !== 'win32') {
-        process.kill(-pid, 'SIGTERM');
-      } else {
-        child.kill();
-      }
-    } catch (error) {
-      console.error('[TerminalManager] Failed to terminate process group:', error);
-      try {
-        child.kill();
-      } catch (fallbackError) {
-        console.error('[TerminalManager] Failed to terminate process:', fallbackError);
-      }
-    }
   }
 }
