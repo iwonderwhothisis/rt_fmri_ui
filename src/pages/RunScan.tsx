@@ -274,88 +274,54 @@ export default function RunScan() {
     }
   };
 
-  const handleRunStep = async (step: SessionStep) => {
+  const handleRunStep = (step: SessionStep) => {
     if (runningSteps.has(step)) return;
 
     // Generate a unique history entry ID for tracking this specific execution
     const historyEntryId = `${step}-${Date.now()}`;
-    const startTime = Date.now();
 
-    setRunningSteps(prev => new Set(prev).add(step));
-    setIsRunning(true);
+    // Mark step as completed immediately (show tick right away)
+    const completedStep: SessionStepHistory = {
+      step,
+      status: 'completed',
+      timestamp: new Date().toISOString(),
+      message: `${step} completed successfully`,
+    };
+    setStepHistory(prev => [...prev, { ...completedStep, _entryId: historyEntryId }]);
 
-    try {
-      // Start step - record in history
-      const startedStep = await sessionService.startStep(step);
-      const startedStepWithId = { ...startedStep, _entryId: historyEntryId };
-      setStepHistory(prev => [...prev, startedStepWithId]);
+    // Increment execution count for this step immediately
+    setStepExecutionCounts(prev => {
+      const newCounts = new Map(prev);
+      const currentCount = newCounts.get(step) || 0;
+      newCounts.set(step, currentCount + 1);
+      return newCounts;
+    });
 
-      // Execute command from config and WAIT for actual completion
-      const stepConfig = commandsConfig?.steps[step];
-      if (stepConfig) {
-        const variables: Record<string, string> = {
-          participantId: sessionConfig?.participantId || '',
-          sessionDate: sessionConfig?.sessionDate || '',
-          protocol: sessionConfig?.protocol || '',
-          runNumber: String((stepExecutionCounts.get('feedback') || 0) + 1),
-          displayFeedback: sessionConfig?.psychopyConfig?.displayFeedback || '',
-          participantAnchor: sessionConfig?.psychopyConfig?.participantAnchor || '',
-          feedbackCondition: sessionConfig?.psychopyConfig?.feedbackCondition || '',
-        };
-        const command = substituteVariables(stepConfig.command, variables);
-        const result = await executeTrackedCommand(stepConfig.terminal, command);
-
-        if (result.exitCode !== 0) {
-          throw new Error(`Command failed with exit code ${result.exitCode}`);
-        }
-      }
-
-      // Calculate actual duration
-      const duration = (Date.now() - startTime) / 1000;
-
-      // Create completed step with real duration
-      const completedStep: SessionStepHistory = {
-        step,
-        status: 'completed',
-        timestamp: new Date().toISOString(),
-        duration,
-        message: `${step} completed successfully`,
+    // Execute command from config in background and track for errors
+    const stepConfig = commandsConfig?.steps[step];
+    if (stepConfig) {
+      const variables: Record<string, string> = {
+        participantId: sessionConfig?.participantId || '',
+        sessionDate: sessionConfig?.sessionDate || '',
+        protocol: sessionConfig?.protocol || '',
+        runNumber: String((stepExecutionCounts.get('feedback') || 0) + 1),
+        displayFeedback: sessionConfig?.psychopyConfig?.displayFeedback || '',
+        participantAnchor: sessionConfig?.psychopyConfig?.participantAnchor || '',
+        feedbackCondition: sessionConfig?.psychopyConfig?.feedbackCondition || '',
       };
+      const command = substituteVariables(stepConfig.command, variables);
 
-      // Update history - find by the unique entry ID instead of last index
-      setStepHistory(prev =>
-        prev.map(s =>
-          (s as SessionStepHistory & { _entryId?: string })._entryId === historyEntryId
-            ? { ...completedStep, _entryId: historyEntryId }
-            : s
-        )
-      );
-
-      // Increment execution count for this step
-      setStepExecutionCounts(prev => {
-        const newCounts = new Map(prev);
-        const currentCount = newCounts.get(step) || 0;
-        newCounts.set(step, currentCount + 1);
-        return newCounts;
-      });
-
-      setIsRunning(false);
-
-      setRunningSteps(prev => {
-        const next = new Set(prev);
-        next.delete(step);
-        return next;
-      });
-
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Step failed';
-      markHistoryFailed(historyEntryId, step, errorMessage);
-      setRunningSteps(prev => {
-        const next = new Set(prev);
-        next.delete(step);
-        return next;
-      });
-      setIsRunning(false);
+      // Track command in background - update to failed only if error occurs
+      executeTrackedCommand(stepConfig.terminal, command)
+        .then(result => {
+          if (result.exitCode !== 0) {
+            markHistoryFailed(historyEntryId, step, `Command failed with exit code ${result.exitCode}`);
+          }
+        })
+        .catch(error => {
+          const errorMessage = error instanceof Error ? error.message : 'Step failed';
+          markHistoryFailed(historyEntryId, step, errorMessage);
+        });
     }
   };
 
@@ -469,145 +435,83 @@ export default function RunScan() {
   };
 
   // Execute a queue item
-  const executeQueueItem = useCallback(async (item: QueueItem) => {
+  const executeQueueItem = useCallback((item: QueueItem) => {
     // Generate a unique history entry ID for tracking this specific execution
     const historyEntryId = `${item.id}-${Date.now()}`;
-    const startTime = Date.now();
 
-    // Mark as running
+    // Mark step as completed immediately (show tick right away)
     setExecutionQueue(prev =>
-      prev.map(i => (i.id === item.id ? { ...i, status: 'running' as const } : i))
+      prev.map(i => (i.id === item.id ? { ...i, status: 'completed' as const } : i))
     );
 
-    setRunningSteps(prev => new Set(prev).add(item.step));
-    setIsRunning(true);
+    // Add completed step to history immediately
+    const completedStep: SessionStepHistory = {
+      step: item.step,
+      status: 'completed',
+      timestamp: new Date().toISOString(),
+      message: `${item.step} completed successfully`,
+    };
+    setStepHistory(prev => [...prev, { ...completedStep, _entryId: historyEntryId }]);
 
-    try {
-      // Start step - record in history
-      const startedStep = await sessionService.startStep(item.step);
-      // Add historyEntryId to track this specific execution
-      const startedStepWithId = { ...startedStep, _entryId: historyEntryId };
-      setStepHistory(prev => [...prev, startedStepWithId]);
+    // Increment execution count for this step immediately
+    setStepExecutionCounts(prev => {
+      const newCounts = new Map(prev);
+      const currentCount = newCounts.get(item.step) || 0;
+      newCounts.set(item.step, currentCount + 1);
+      return newCounts;
+    });
 
-      // Execute command from config and WAIT for actual completion
-      const stepConfig = commandsConfig?.steps[item.step];
-      if (stepConfig) {
-        const variables: Record<string, string> = {
-          participantId: sessionConfig?.participantId || '',
-          sessionDate: sessionConfig?.sessionDate || '',
-          protocol: sessionConfig?.protocol || '',
-          runNumber: String((stepExecutionCounts.get('feedback') || 0) + 1),
-          displayFeedback: sessionConfig?.psychopyConfig?.displayFeedback || '',
-          participantAnchor: sessionConfig?.psychopyConfig?.participantAnchor || '',
-          feedbackCondition: sessionConfig?.psychopyConfig?.feedbackCondition || '',
-        };
-        const command = substituteVariables(stepConfig.command, variables);
-        const result = await executeTrackedCommand(stepConfig.terminal, command);
-
-        if (result.exitCode !== 0) {
-          throw new Error(`Command failed with exit code ${result.exitCode}`);
-        }
-      }
-
-      // Check if this item was stopped using the ref (most reliable check)
-      if (stoppedItemsRef.current.has(item.id)) {
-        // Item was stopped - don't update anything, just return
-        // Clean up the ref entry
-        stoppedItemsRef.current.delete(item.id);
-        return;
-      }
-
-      // Check current queue state to see if item was stopped
-      let wasStopped = false;
-      setExecutionQueue(prev => {
-        const currentItem = prev.find(i => i.id === item.id);
-        if (currentItem?.status === 'failed') {
-          wasStopped = true;
-          stoppedItemsRef.current.delete(item.id);
-          return prev;
-        }
-        return prev.map(i =>
-          i.id === item.id ? { ...i, status: 'completed' as const } : i
-        );
-      });
-
-      // If stopped, don't update history or counts
-      if (wasStopped) {
-        return;
-      }
-
-      // Calculate actual duration
-      const duration = (Date.now() - startTime) / 1000;
-
-      // Create completed step with real duration
-      const completedStep: SessionStepHistory = {
-        step: item.step,
-        status: 'completed',
-        timestamp: new Date().toISOString(),
-        duration,
-        message: `${item.step} completed successfully`,
+    // Execute command from config in background and track for errors
+    const stepConfig = commandsConfig?.steps[item.step];
+    if (stepConfig) {
+      const variables: Record<string, string> = {
+        participantId: sessionConfig?.participantId || '',
+        sessionDate: sessionConfig?.sessionDate || '',
+        protocol: sessionConfig?.protocol || '',
+        runNumber: String((stepExecutionCounts.get('feedback') || 0) + 1),
+        displayFeedback: sessionConfig?.psychopyConfig?.displayFeedback || '',
+        participantAnchor: sessionConfig?.psychopyConfig?.participantAnchor || '',
+        feedbackCondition: sessionConfig?.psychopyConfig?.feedbackCondition || '',
       };
+      const command = substituteVariables(stepConfig.command, variables);
 
-      // Update history - find by the unique entry ID instead of last index
-      setStepHistory(prev =>
-        prev.map(s =>
-          (s as SessionStepHistory & { _entryId?: string })._entryId === historyEntryId
-            ? { ...completedStep, _entryId: historyEntryId }
-            : s
-        )
-      );
-
-      // Increment execution count for this step
-      setStepExecutionCounts(prev => {
-        const newCounts = new Map(prev);
-        const currentCount = newCounts.get(item.step) || 0;
-        newCounts.set(item.step, currentCount + 1);
-        return newCounts;
-      });
-
-      setIsRunning(false);
-      setRunningSteps(prev => {
-        const next = new Set(prev);
-        next.delete(item.step);
-        return next;
-      });
-
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Step failed';
-      markHistoryFailed(historyEntryId, item.step, errorMessage);
-      // Mark as failed
-      setExecutionQueue(prev =>
-        prev.map(i =>
-          i.id === item.id ? { ...i, status: 'failed' as const } : i
-        )
-      );
-
-      setRunningSteps(prev => {
-        const next = new Set(prev);
-        next.delete(item.step);
-        return next;
-      });
-      setIsRunning(false);
+      // Track command in background - update to failed only if error occurs
+      executeTrackedCommand(stepConfig.terminal, command)
+        .then(result => {
+          if (result.exitCode !== 0) {
+            markHistoryFailed(historyEntryId, item.step, `Command failed with exit code ${result.exitCode}`);
+            setExecutionQueue(prev =>
+              prev.map(i =>
+                i.id === item.id ? { ...i, status: 'failed' as const } : i
+              )
+            );
+          }
+        })
+        .catch(error => {
+          const errorMessage = error instanceof Error ? error.message : 'Step failed';
+          markHistoryFailed(historyEntryId, item.step, errorMessage);
+          setExecutionQueue(prev =>
+            prev.map(i =>
+              i.id === item.id ? { ...i, status: 'failed' as const } : i
+            )
+          );
+        });
     }
   }, [commandsConfig, sessionConfig?.participantId, substituteVariables, executeTrackedCommand, markHistoryFailed]);
 
   // Run next item in queue (manual execution - one item at a time)
   const runNextQueueItem = useCallback(() => {
-    if (!sessionInitialized || isRunning) return;
+    if (!sessionInitialized) return;
 
     const pendingItem = executionQueue.find(item => item.status === 'pending');
-    const runningItem = executionQueue.find(item => item.status === 'running');
 
-    // If there's already a running item, don't start another
-    if (runningItem) return;
-
-    // If there's a pending item and nothing running, execute it
+    // If there's a pending item, execute it (completes immediately, shows tick right away)
     if (pendingItem) {
       setQueueStarted(true);
       setQueueStopped(false);
       executeQueueItem(pendingItem);
     }
-  }, [executionQueue, sessionInitialized, isRunning, executeQueueItem]);
+  }, [executionQueue, sessionInitialized, executeQueueItem]);
 
   const handleStartSession = async () => {
     if (!sessionConfig) return;
