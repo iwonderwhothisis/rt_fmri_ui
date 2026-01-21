@@ -179,13 +179,6 @@ buttons:
     terminal: murfi
     command: "echo 'Navigating back'"
 
-  sessionDetail.exportJson:
-    terminal: murfi
-    command: "echo 'Exporting session ${sessionId} as JSON'"
-
-  sessionDetail.exportCsv:
-    terminal: murfi
-    command: "echo 'Exporting session ${sessionId} as CSV'"
 
   # Navigation buttons
   nav.runScan:
