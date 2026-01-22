@@ -44,9 +44,8 @@ interface SessionControlsProps {
 
 // Step categories for organizing available steps
 const stepCategories: { name: string; steps: SessionStep[] }[] = [
-  { name: 'Preparation', steps: ['2vol', 'resting_state', 'extract_rs_networks', 'process_roi_masks', 'register'] },
+  { name: 'Murfi', steps: ['2vol', 'resting_state', 'extract_rs_networks', 'process_roi_masks', 'register', 'cleanup'] },
   { name: 'PsychoPy', steps: ['feedback_no_15', 'feedback_no_30', 'feedback_yes_15', 'feedback_yes_30'] },
-  { name: 'Cleanup', steps: ['cleanup'] },
 ];
 
 // Format step names for display
@@ -275,9 +274,9 @@ export function SessionControls({
             {/* Available Steps Section */}
             <div>
               <h4 className="text-sm font-semibold text-foreground mb-3">Available Steps</h4>
-              <div className="space-y-4">
+              <div className="flex flex-col md:flex-row gap-6">
                 {stepCategories.map((category) => (
-                  <div key={category.name}>
+                  <div key={category.name} className="flex-1">
                     <h5 className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wider">{category.name}</h5>
                     <div className="flex flex-wrap gap-2">
                       {category.steps.map((step) => (

@@ -649,10 +649,10 @@ export default function RunScan() {
           />
         </Card>
 
-        {/* Main Content - Two-column layout with equal height columns */}
-        <div className="flex flex-col xl:flex-row xl:items-stretch gap-6">
-          {/* Left column - Step content */}
-          <div className="xl:flex-1 flex flex-col">
+        {/* Main Content - Stacked layout */}
+        <div className="flex flex-col gap-6">
+          {/* Step content */}
+          <div className="flex flex-col">
             {workflowStep === 'initialize' && (
               <div className="flex-1 flex flex-col [&>*]:flex-1">
                 <InitializeStep
@@ -732,8 +732,8 @@ export default function RunScan() {
             )}
           </div>
 
-          {/* Right column - Terminals (always visible, single instance) */}
-          <div className="xl:flex-1 flex flex-col">
+          {/* Terminals (below step content) */}
+          <div className="flex flex-col">
             <Card className="p-4 md:p-5 bg-card border-border flex-1">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-3">
@@ -754,10 +754,10 @@ export default function RunScan() {
                 </div>
               </div>
 
-              {/* Terminals stacked vertically */}
-              <div className="mt-4 flex flex-col gap-4">
+              {/* Terminals side by side */}
+              <div className="mt-4 flex flex-col md:flex-row gap-4">
                 {murfiSessionActive && (
-                  <div className="space-y-2">
+                  <div className="space-y-2 flex-1">
                     <div className="text-xs font-semibold text-foreground">Murfi</div>
                     <div className="rounded-lg border border-border/60 overflow-hidden" style={{ height: '250px' }}>
                       <XTerminal
@@ -772,7 +772,7 @@ export default function RunScan() {
                   </div>
                 )}
                 {psychopySessionActive && (
-                  <div className="space-y-2">
+                  <div className="space-y-2 flex-1">
                     <div className="text-xs font-semibold text-foreground">PsychoPy</div>
                     <div className="rounded-lg border border-border/60 overflow-hidden" style={{ height: '250px' }}>
                       <XTerminal
