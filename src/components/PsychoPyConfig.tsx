@@ -23,7 +23,7 @@ export function PsychoPyConfigComponent({ config, participantId, onChange, onPar
             id="participantId"
             value={participantId}
             onChange={(e) => onParticipantIdChange(e.target.value)}
-            placeholder="e.g., remind0001"
+            placeholder="001"
             className="bg-input border-border"
           />
         </div>

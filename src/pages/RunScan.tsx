@@ -37,7 +37,7 @@ export default function RunScan() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [sessionStartTime, setSessionStartTime] = useState<string | null>(null);
   const [psychopyConfig, setPsychopyConfig] = useState<PsychoPyConfig>({
-    participantAnchor: 'toe',
+    participantAnchor: '',
   });
   const [participantId, setParticipantId] = useState('');
   const [isRunning, setIsRunning] = useState(false);
@@ -55,6 +55,7 @@ export default function RunScan() {
   const [murfiTerminalStatus, setMurfiTerminalStatus] = useState<TerminalStatus>('disconnected');
   const [psychopyTerminalStatus, setPsychopyTerminalStatus] = useState<TerminalStatus>('disconnected');
   const [initializeConfirmed, setInitializeConfirmed] = useState(false);
+  const [setupCompleted, setSetupCompleted] = useState(false);
   const [executionQueue, setExecutionQueue] = useState<QueueItem[]>([]);
   const [queueStarted, setQueueStarted] = useState(false);
   const [queueStopped, setQueueStopped] = useState(false);
@@ -203,6 +204,27 @@ export default function RunScan() {
       });
     }
   };
+
+  // Handle Create Participant button
+  const handleCreate = useCallback(() => {
+    if (!participantId || !commandsConfig) return;
+    const stepConfig = commandsConfig.steps['create'];
+    if (stepConfig) {
+      const command = substituteVariables(stepConfig.command, { participantId });
+      executeTrackedCommand(stepConfig.terminal, command);
+    }
+  }, [participantId, commandsConfig, substituteVariables, executeTrackedCommand]);
+
+  // Handle Setup Session button
+  const handleSetup = useCallback(() => {
+    if (!participantId || !commandsConfig) return;
+    const stepConfig = commandsConfig.steps['setup'];
+    if (stepConfig) {
+      const command = substituteVariables(stepConfig.command, { participantId });
+      executeTrackedCommand(stepConfig.terminal, command);
+      setSetupCompleted(true);
+    }
+  }, [participantId, commandsConfig, substituteVariables, executeTrackedCommand]);
 
   // Helper function to derive displayFeedback and feedbackCondition from step name
   const getStepVariables = useCallback((step: SessionStep): { displayFeedback: string; feedbackCondition: string } => {
@@ -607,11 +629,12 @@ export default function RunScan() {
     setMurfiTerminalStatus('disconnected');
     setPsychopyTerminalStatus('disconnected');
     setInitializeConfirmed(false);
+    setSetupCompleted(false);
     setSessionId(null);
     setSessionStartTime(null);
     setParticipantId('');
     setPsychopyConfig({
-      participantAnchor: 'toe',
+      participantAnchor: '',
     });
   };
 
@@ -685,29 +708,52 @@ export default function RunScan() {
                   participantId={participantId}
                   onChange={handlePsychoPyConfigChange}
                   onParticipantIdChange={handleParticipantIdChange}
-                  actionButton={
-                    <Button
-                      onClick={() => {
-                        // Ensure session config is set with participant ID
-                        if (!sessionConfig) {
-                          setSessionConfig({
-                            participantId,
-                            sessionDate: new Date().toISOString().split('T')[0],
-                            protocol: 'DMN-NFB',
-                            psychopyConfig,
-                          });
-                        }
-                        handleStartSession();
-                        setManualWorkflowStep('execute');
-                      }}
-                      disabled={!participantId}
-                      className="bg-primary hover:bg-primary/90"
-                    >
-                      Start Session & Continue
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
-                  }
                 />
+
+                {/* Initial Setup buttons */}
+                {participantId && (
+                  <div className="mt-6 pt-4 border-t border-border">
+                    <h5 className="text-xs font-medium text-muted-foreground mb-3 uppercase tracking-wider">
+                      Initial Setup
+                    </h5>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        variant="outline"
+                        onClick={handleCreate}
+                        disabled={!murfiStarted}
+                      >
+                        Create Participant
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={handleSetup}
+                        disabled={!murfiStarted}
+                      >
+                        Setup Session
+                      </Button>
+                      <Button
+                        onClick={() => {
+                          // Ensure session config is set with participant ID
+                          if (!sessionConfig) {
+                            setSessionConfig({
+                              participantId,
+                              sessionDate: new Date().toISOString().split('T')[0],
+                              protocol: 'DMN-NFB',
+                              psychopyConfig,
+                            });
+                          }
+                          handleStartSession();
+                          setManualWorkflowStep('execute');
+                        }}
+                        disabled={!setupCompleted}
+                        className="bg-primary hover:bg-primary/90"
+                      >
+                        Start Session & Continue
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </Card>
             )}
 

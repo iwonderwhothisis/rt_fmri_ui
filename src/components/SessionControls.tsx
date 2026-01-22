@@ -19,7 +19,7 @@ import {
 } from '@dnd-kit/sortable';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Play, RotateCcw, AlertCircle, Check, Square, GripVertical } from 'lucide-react';
+import { Play, RotateCcw, AlertCircle, Check, Square, GripVertical, Settings2 } from 'lucide-react';
 import { SessionConfig, SessionStep } from '@/types/session';
 import { QueueItem } from '@/components/ExecutionQueue';
 import { QueueItemCard } from '@/components/ExecutionQueue';
@@ -232,7 +232,10 @@ export function SessionControls({
       onDragCancel={handleDragCancel}
     >
       <Card className="p-6 bg-card border-border">
-        <h3 className="text-lg font-semibold mb-4 text-foreground">Session Controls</h3>
+        <h3 className="text-lg font-semibold mb-4 text-foreground flex items-center gap-2">
+          <Settings2 className="h-5 w-5" />
+          Session Controls
+        </h3>
 
         {!isConfigValid && (
           <div className="flex items-center gap-2 mb-4 p-3 rounded-lg bg-warning/10 border border-warning/20">
