@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ParticipantSelector } from '@/components/ParticipantSelector';
 import { PsychoPyConfigComponent } from '@/components/PsychoPyConfig';
 import { SessionControls } from '@/components/SessionControls';
 import { WorkflowStepper, WorkflowStep } from '@/components/WorkflowStepper';
@@ -13,7 +12,7 @@ import { useTerminalCommand } from '@/contexts/TerminalCommandContext';
 import { sessionService } from '@/services/mockSessionService';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, CheckCircle2, Loader2, Terminal } from 'lucide-react';
+import { ArrowRight, Loader2, Terminal } from 'lucide-react';
 import { QueueItem } from '@/components/ExecutionQueue';
 import { Badge } from '@/components/ui/badge';
 import { buildApiUrl } from '@/lib/apiBase';
@@ -24,7 +23,10 @@ export const sessionSteps: SessionStep[] = [
   'extract_rs_networks',
   'process_roi_masks',
   'register',
-  'feedback',
+  'feedback_no_15',
+  'feedback_no_30',
+  'feedback_yes_15',
+  'feedback_yes_30',
   'cleanup',
 ];
 
@@ -35,10 +37,9 @@ export default function RunScan() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [sessionStartTime, setSessionStartTime] = useState<string | null>(null);
   const [psychopyConfig, setPsychopyConfig] = useState<PsychoPyConfig>({
-    displayFeedback: 'Feedback',
     participantAnchor: 'toe',
-    feedbackCondition: '15min',
   });
+  const [participantId, setParticipantId] = useState('');
   const [isRunning, setIsRunning] = useState(false);
   const [sessionInitialized, setSessionInitialized] = useState(false);
   const [stepExecutionCounts, setStepExecutionCounts] = useState<Map<SessionStep, number>>(new Map());
@@ -57,31 +58,19 @@ export default function RunScan() {
   const [executionQueue, setExecutionQueue] = useState<QueueItem[]>([]);
   const [queueStarted, setQueueStarted] = useState(false);
   const [queueStopped, setQueueStopped] = useState(false);
-  const [setupCompleted, setSetupCompleted] = useState(false);
   const stoppedItemsRef = useRef<Set<string>>(new Set());
   const [commandsConfig, setCommandsConfig] = useState<CommandsConfig | null>(null);
   const murfiTerminalRef = useRef<TerminalHandle | null>(null);
   const psychopyTerminalRef = useRef<TerminalHandle | null>(null);
 
   // Determine workflow step based on state
-  // Priority order: execute > configure > participant > initialize
+  // Priority order: execute > configure > initialize
   const getCurrentWorkflowStep = (): WorkflowStep => {
     // Session is initialized and ready for execution
     if (sessionInitialized) return 'execute';
 
-    // All configuration is complete, ready to start session
-    if (sessionConfig?.participantId && sessionConfig?.psychopyConfig && setupCompleted) {
-      return 'configure'; // Show configure step until session is started
-    }
-
-    // Participant selected and setup completed, move to configure
-    if (sessionConfig?.participantId && setupCompleted) return 'configure';
-
-    // Participant selected but setup not completed
-    if (sessionConfig?.participantId) return 'participant';
-
-    // Systems initialized, move to participant selection
-    if (murfiStarted && psychopyStarted && initializeConfirmed) return 'participant';
+    // Systems initialized, move to configure
+    if (murfiStarted && psychopyStarted && initializeConfirmed) return 'configure';
 
     // Default: initialize systems
     return 'initialize';
@@ -90,10 +79,6 @@ export default function RunScan() {
   const getCompletedWorkflowSteps = (): WorkflowStep[] => {
     const completed: WorkflowStep[] = [];
     if (murfiStarted && psychopyStarted && initializeConfirmed) completed.push('initialize');
-    // Participant step is completed when participant is selected and setup is done
-    if (sessionConfig?.participantId && setupCompleted) {
-      completed.push('participant');
-    }
     if (sessionConfig?.participantId && sessionConfig?.psychopyConfig) completed.push('configure');
     if (sessionInitialized) completed.push('execute');
     return completed;
@@ -195,84 +180,49 @@ export default function RunScan() {
     });
   }, []);
 
-  const handleParticipantSelect = async (participantId: string, isNewParticipant: boolean = false) => {
-    // Fetch participant data to get their stored anchor
-    const participant = await sessionService.getParticipant(participantId);
-    const participantAnchor = participant?.anchor || '';
-
-    // Update psychopy config with the participant's anchor
-    const updatedPsychopyConfig = {
-      ...psychopyConfig,
-      participantAnchor,
-    };
-    setPsychopyConfig(updatedPsychopyConfig);
-
-    setSessionConfig({
-      participantId,
+  // Handle participant ID change
+  const handleParticipantIdChange = (newParticipantId: string) => {
+    setParticipantId(newParticipantId);
+    setSessionConfig(prev => prev ? {
+      ...prev,
+      participantId: newParticipantId,
+    } : {
+      participantId: newParticipantId,
       sessionDate: new Date().toISOString().split('T')[0],
       protocol: 'DMN-NFB',
-      psychopyConfig: updatedPsychopyConfig,
+      psychopyConfig,
     });
-    setSetupCompleted(false);
-    setSetupRan(false);
-
-    // If creating a new participant, run the create step
-    if (isNewParticipant) {
-      handleRunStep('create');
-    }
   };
 
-  const [setupRan, setSetupRan] = useState(false);
-
-  const handleSetup = () => {
-    const variables: Record<string, string> = {
-      participantId: sessionConfig?.participantId || '',
-      sessionDate: sessionConfig?.sessionDate || '',
-      protocol: sessionConfig?.protocol || '',
-      runNumber: String((stepExecutionCounts.get('feedback') || 0) + 1),
-      displayFeedback: sessionConfig?.psychopyConfig?.displayFeedback || '',
-      participantAnchor: sessionConfig?.psychopyConfig?.participantAnchor || '',
-      feedbackCondition: sessionConfig?.psychopyConfig?.feedbackCondition || '',
-    };
-
-    // Execute button command (fire-and-forget)
-    executeButtonCommand('runScan.setup', variables);
-
-    // Also send the step command from config if available
-    const stepConfig = commandsConfig?.steps['setup'];
-    if (stepConfig) {
-      const command = substituteVariables(stepConfig.command, variables);
-      sendCommandToTerminal(stepConfig.terminal, command);
-    }
-
-    setSetupRan(true);
-  };
-
-  const handleProceedToConfigure = () => {
-    setSetupCompleted(true);
-    setManualWorkflowStep('configure');
-  };
-
-  const handlePsychoPyConfigChange = async (config: PsychoPyConfig) => {
+  const handlePsychoPyConfigChange = (config: PsychoPyConfig) => {
     setPsychopyConfig(config);
     if (sessionConfig) {
       setSessionConfig({
         ...sessionConfig,
         psychopyConfig: config,
       });
-
-      // Save the anchor back to the participant's record
-      if (config.participantAnchor !== psychopyConfig.participantAnchor) {
-        try {
-          await sessionService.updateParticipant(sessionConfig.participantId, {
-            anchor: config.participantAnchor,
-          });
-        } catch (error) {
-          console.error('Failed to save participant anchor:', error);
-        }
-      }
     }
   };
+
+  // Helper function to derive displayFeedback and feedbackCondition from step name
+  const getStepVariables = useCallback((step: SessionStep): { displayFeedback: string; feedbackCondition: string } => {
+    if (step === 'feedback_no_15') return { displayFeedback: 'No Feedback', feedbackCondition: '15min' };
+    if (step === 'feedback_no_30') return { displayFeedback: 'No Feedback', feedbackCondition: '30min' };
+    if (step === 'feedback_yes_15') return { displayFeedback: 'Feedback', feedbackCondition: '15min' };
+    if (step === 'feedback_yes_30') return { displayFeedback: 'Feedback', feedbackCondition: '30min' };
+    return { displayFeedback: '', feedbackCondition: '' };
+  }, []);
+
+  // Count feedback runs (any feedback step)
+  const getFeedbackRunCount = useCallback(() => {
+    let count = 0;
+    for (const [step, execCount] of stepExecutionCounts.entries()) {
+      if (step.startsWith('feedback_')) {
+        count += execCount;
+      }
+    }
+    return count;
+  }, [stepExecutionCounts]);
 
   const handleRunStep = (step: SessionStep) => {
     if (runningSteps.has(step)) return;
@@ -300,16 +250,26 @@ export default function RunScan() {
     // Execute command from config in background and track for errors
     const stepConfig = commandsConfig?.steps[step];
     if (stepConfig) {
+      const stepVars = getStepVariables(step);
       const variables: Record<string, string> = {
         participantId: sessionConfig?.participantId || '',
         sessionDate: sessionConfig?.sessionDate || '',
         protocol: sessionConfig?.protocol || '',
-        runNumber: String((stepExecutionCounts.get('feedback') || 0) + 1),
-        displayFeedback: sessionConfig?.psychopyConfig?.displayFeedback || '',
+        runNumber: String(getFeedbackRunCount() + 1),
+        displayFeedback: stepVars.displayFeedback,
         participantAnchor: sessionConfig?.psychopyConfig?.participantAnchor || '',
-        feedbackCondition: sessionConfig?.psychopyConfig?.feedbackCondition || '',
+        feedbackCondition: stepVars.feedbackCondition,
       };
       const command = substituteVariables(stepConfig.command, variables);
+
+      // Execute murfi_command first if present (for psychopy steps that also need murfi)
+      if (stepConfig.murfi_command) {
+        const murfiCommand = substituteVariables(stepConfig.murfi_command, variables);
+        executeTrackedCommand('murfi', murfiCommand)
+          .catch(error => {
+            console.error('[RunScan] murfi_command failed:', error);
+          });
+      }
 
       // Track command in background - update to failed only if error occurs
       executeTrackedCommand(stepConfig.terminal, command)
@@ -464,16 +424,26 @@ export default function RunScan() {
     // Execute command from config in background and track for errors
     const stepConfig = commandsConfig?.steps[item.step];
     if (stepConfig) {
+      const stepVars = getStepVariables(item.step);
       const variables: Record<string, string> = {
         participantId: sessionConfig?.participantId || '',
         sessionDate: sessionConfig?.sessionDate || '',
         protocol: sessionConfig?.protocol || '',
-        runNumber: String((stepExecutionCounts.get('feedback') || 0) + 1),
-        displayFeedback: sessionConfig?.psychopyConfig?.displayFeedback || '',
+        runNumber: String(getFeedbackRunCount() + 1),
+        displayFeedback: stepVars.displayFeedback,
         participantAnchor: sessionConfig?.psychopyConfig?.participantAnchor || '',
-        feedbackCondition: sessionConfig?.psychopyConfig?.feedbackCondition || '',
+        feedbackCondition: stepVars.feedbackCondition,
       };
       const command = substituteVariables(stepConfig.command, variables);
+
+      // Execute murfi_command first if present (for psychopy steps that also need murfi)
+      if (stepConfig.murfi_command) {
+        const murfiCommand = substituteVariables(stepConfig.murfi_command, variables);
+        executeTrackedCommand('murfi', murfiCommand)
+          .catch(error => {
+            console.error('[RunScan] murfi_command failed:', error);
+          });
+      }
 
       // Track command in background - update to failed only if error occurs
       executeTrackedCommand(stepConfig.terminal, command)
@@ -497,7 +467,7 @@ export default function RunScan() {
           );
         });
     }
-  }, [commandsConfig, sessionConfig?.participantId, substituteVariables, executeTrackedCommand, markHistoryFailed]);
+  }, [commandsConfig, sessionConfig?.participantId, sessionConfig?.sessionDate, sessionConfig?.protocol, sessionConfig?.psychopyConfig?.participantAnchor, substituteVariables, executeTrackedCommand, markHistoryFailed, getStepVariables, getFeedbackRunCount]);
 
   // Run next item in queue (manual execution - one item at a time)
   const runNextQueueItem = useCallback(() => {
@@ -514,7 +484,20 @@ export default function RunScan() {
   }, [executionQueue, sessionInitialized, executeQueueItem]);
 
   const handleStartSession = async () => {
-    if (!sessionConfig) return;
+    // Create session config if not already set
+    const config = sessionConfig || {
+      participantId,
+      sessionDate: new Date().toISOString().split('T')[0],
+      protocol: 'DMN-NFB',
+      psychopyConfig,
+    };
+
+    if (!config.participantId) return;
+
+    // Ensure session config is saved
+    if (!sessionConfig) {
+      setSessionConfig(config);
+    }
 
     // Generate session ID with timestamp to ensure uniqueness
     // Format: S{sequential}-{timestamp} to be both human-readable and unique
@@ -549,7 +532,6 @@ export default function RunScan() {
     setQueueStarted(false);
     setQueueStopped(false);
     stoppedItemsRef.current.clear();
-    // Note: Don't reset setupCompleted here - it was already completed before reaching execute step
     setManualWorkflowStep(null);
   };
 
@@ -616,8 +598,6 @@ export default function RunScan() {
     setQueueStarted(false);
     setQueueStopped(false);
     stoppedItemsRef.current.clear();
-    setSetupCompleted(false);
-    setSetupRan(false);
     setIsRunning(false);
     setManualWorkflowStep(null);
     setMurfiStarted(false);
@@ -629,23 +609,22 @@ export default function RunScan() {
     setInitializeConfirmed(false);
     setSessionId(null);
     setSessionStartTime(null);
+    setParticipantId('');
     setPsychopyConfig({
-      displayFeedback: 'Feedback',
       participantAnchor: 'toe',
-      feedbackCondition: '15min',
     });
   };
 
   const handleWorkflowStepClick = (step: WorkflowStep) => {
-    // Allow clicking on initialize step, participant step, configure step, or any completed step
-    if (step === 'initialize' || step === 'participant' || step === 'configure' || completedSteps.includes(step)) {
+    // Allow clicking on initialize step, configure step, or any completed step
+    if (step === 'initialize' || step === 'configure' || completedSteps.includes(step)) {
       setManualWorkflowStep(step);
     }
   };
 
   const handleConfirmInitialize = () => {
     setInitializeConfirmed(true);
-    setManualWorkflowStep('participant');
+    setManualWorkflowStep('configure');
   };
 
   return (
@@ -689,93 +668,40 @@ export default function RunScan() {
               </div>
             )}
 
-            {workflowStep === 'participant' && (
+            {workflowStep === 'configure' && (
               <Card className="p-6 bg-card border-border">
                 <h2 className="text-xl font-semibold mb-4 text-foreground flex items-center gap-2">
                   <span className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold">
                     2
                   </span>
-                  Select Participant
+                  Configure Session
                 </h2>
                 <p className="text-muted-foreground mb-6">
-                  Choose an existing participant or create a new one.
-                </p>
-
-                <ParticipantSelector
-                  onParticipantSelect={(id, isNew) => handleParticipantSelect(id, isNew)}
-                  selectedParticipantId={sessionConfig?.participantId}
-                  inline={false}
-                />
-
-                {sessionConfig?.participantId && !setupCompleted && (
-                  <div className="mt-6 pt-6 border-t border-border">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="text-sm font-semibold text-foreground mb-1">
-                          {setupRan ? 'Setup Complete' : 'Setup Required'}
-                        </h3>
-                        <p className="text-xs text-muted-foreground">
-                          {setupRan
-                            ? 'Setup has run. Proceed to configuration when ready.'
-                            : 'Complete setup before proceeding to configuration'}
-                        </p>
-                      </div>
-                      {!setupRan ? (
-                        <Button
-                          onClick={handleSetup}
-                          disabled={isRunning || runningSteps.has('setup')}
-                          className="bg-primary hover:bg-primary/90"
-                        >
-                          {runningSteps.has('setup') ? (
-                            <>
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              Running Setup...
-                            </>
-                          ) : (
-                            <>
-                              Run Setup
-                              <ArrowRight className="ml-2 h-4 w-4" />
-                            </>
-                          )}
-                        </Button>
-                      ) : (
-                        <Button
-                          onClick={handleProceedToConfigure}
-                          className="bg-primary hover:bg-primary/90"
-                        >
-                          Proceed to Configure
-                          <ArrowRight className="ml-2 h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </Card>
-            )}
-
-            {workflowStep === 'configure' && sessionConfig?.participantId && (
-              <Card className="p-6 bg-card border-border">
-                <h2 className="text-xl font-semibold mb-4 text-foreground flex items-center gap-2">
-                  <span className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold">
-                    3
-                  </span>
-                  Configure PsychoPy Settings
-                </h2>
-                <p className="text-muted-foreground mb-6">
-                  Configure the PsychoPy settings for this session.
+                  Enter participant details and configure settings for this session.
                 </p>
 
                 <PsychoPyConfigComponent
                   config={psychopyConfig}
+                  participantId={participantId}
                   onChange={handlePsychoPyConfigChange}
+                  onParticipantIdChange={handleParticipantIdChange}
                   actionButton={
                     <Button
                       onClick={() => {
+                        // Ensure session config is set with participant ID
+                        if (!sessionConfig) {
+                          setSessionConfig({
+                            participantId,
+                            sessionDate: new Date().toISOString().split('T')[0],
+                            protocol: 'DMN-NFB',
+                            psychopyConfig,
+                          });
+                        }
                         handleStartSession();
                         setManualWorkflowStep('execute');
                       }}
-                      disabled={!sessionConfig?.psychopyConfig}
-                      className="bg-primary hover:bg-primary/90 w-full"
+                      disabled={!participantId}
+                      className="bg-primary hover:bg-primary/90"
                     >
                       Start Session & Continue
                       <ArrowRight className="ml-2 h-4 w-4" />

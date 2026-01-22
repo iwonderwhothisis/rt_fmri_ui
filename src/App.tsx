@@ -7,7 +7,6 @@ import { TerminalCommandProvider } from "@/contexts/TerminalCommandContext";
 import { Navigation } from "./components/Navigation";
 import RunScan from "./pages/RunScan";
 import SessionDetail from "./pages/SessionDetail";
-import EditParticipants from "./pages/EditParticipants";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -22,7 +21,6 @@ const App = () => (
           <Navigation />
           <Routes>
             <Route path="/" element={<RunScan />} />
-            <Route path="/participants" element={<EditParticipants />} />
             <Route path="/session/:sessionId" element={<SessionDetail />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />

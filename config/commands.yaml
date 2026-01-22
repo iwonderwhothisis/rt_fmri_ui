@@ -63,10 +63,29 @@ steps:
     terminal: "murfi"
     command: "echo 'Running registration...'"
 
-  feedback:
-    name: "Feedback"
+  feedback_no_15:
+    name: "No Feedback (15 min)"
     terminal: "psychopy"
     command: "echo 'Running feedback session: participant=${participantId} run=${runNumber} feedback=${displayFeedback} condition=${feedbackCondition} anchor=${participantAnchor}'"
+    murfi_command: "echo 'Starting murfi feedback for ${participantId}'"
+
+  feedback_no_30:
+    name: "No Feedback (30 min)"
+    terminal: "psychopy"
+    command: "echo 'Running feedback session: participant=${participantId} run=${runNumber} feedback=${displayFeedback} condition=${feedbackCondition} anchor=${participantAnchor}'"
+    murfi_command: "echo 'Starting murfi feedback for ${participantId}'"
+
+  feedback_yes_15:
+    name: "Feedback (15 min)"
+    terminal: "psychopy"
+    command: "echo 'Running feedback session: participant=${participantId} run=${runNumber} feedback=${displayFeedback} condition=${feedbackCondition} anchor=${participantAnchor}'"
+    murfi_command: "echo 'Starting murfi feedback for ${participantId}'"
+
+  feedback_yes_30:
+    name: "Feedback (30 min)"
+    terminal: "psychopy"
+    command: "echo 'Running feedback session: participant=${participantId} run=${runNumber} feedback=${displayFeedback} condition=${feedbackCondition} anchor=${participantAnchor}'"
+    murfi_command: "echo 'Starting murfi feedback for ${participantId}'"
 
   cleanup:
     name: "Cleanup"

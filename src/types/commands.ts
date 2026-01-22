@@ -8,6 +8,7 @@ export interface StepConfig {
   name: string;
   terminal: 'murfi' | 'psychopy';
   command: string;
+  murfi_command?: string;  // Optional command to run on murfi terminal (for psychopy steps that also need murfi)
 }
 
 export interface ActionConfig {

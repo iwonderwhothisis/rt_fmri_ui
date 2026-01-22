@@ -1,8 +1,3 @@
-export interface Participant {
-  id: string;
-  anchor: string;
-}
-
 export type SessionStep =
   | 'create'
   | 'setup'
@@ -11,7 +6,10 @@ export type SessionStep =
   | 'extract_rs_networks'
   | 'process_roi_masks'
   | 'register'
-  | 'feedback'
+  | 'feedback_no_15'
+  | 'feedback_no_30'
+  | 'feedback_yes_15'
+  | 'feedback_yes_30'
   | 'cleanup'
   | 'backup_reg_mni_masks_to_2vol';
 
@@ -28,13 +26,8 @@ export interface SessionStepHistory {
 // Participant anchor (free text entry)
 export type ParticipantAnchor = string;
 
-// Valid feedback condition options
-export type FeedbackCondition = '5min' | '10min' | '15min' | '20min' | '30min';
-
 export interface PsychoPyConfig {
-  displayFeedback: 'No Feedback' | 'Feedback';
   participantAnchor: ParticipantAnchor;
-  feedbackCondition: FeedbackCondition;
 }
 
 export interface SessionConfig {

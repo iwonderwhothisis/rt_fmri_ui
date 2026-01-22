@@ -42,6 +42,29 @@ interface SessionControlsProps {
   onStartQueue: () => void;
 }
 
+// Step categories for organizing available steps
+const stepCategories: { name: string; steps: SessionStep[] }[] = [
+  { name: 'Preparation', steps: ['2vol', 'resting_state', 'extract_rs_networks', 'process_roi_masks', 'register'] },
+  { name: 'PsychoPy', steps: ['feedback_no_15', 'feedback_no_30', 'feedback_yes_15', 'feedback_yes_30'] },
+  { name: 'Cleanup', steps: ['cleanup'] },
+];
+
+// Format step names for display
+const formatStepName = (step: SessionStep): string => {
+  // Handle special step names
+  if (step === 'feedback_no_15') return 'No Feedback (15 min)';
+  if (step === 'feedback_no_30') return 'No Feedback (30 min)';
+  if (step === 'feedback_yes_15') return 'Feedback (15 min)';
+  if (step === 'feedback_yes_30') return 'Feedback (30 min)';
+
+  // Default formatting: replace underscores and capitalize
+  return step
+    .replace(/_/g, ' ')
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+};
+
 function DraggableStepCard({ step }: { step: SessionStep }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: `step-${step}`,
@@ -53,14 +76,6 @@ function DraggableStepCard({ step }: { step: SessionStep }) {
         transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
       }
     : undefined;
-
-  const formatStepName = (step: SessionStep): string => {
-    return step
-      .replace(/_/g, ' ')
-      .split(' ')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' ');
-  };
 
   return (
     <Card
@@ -159,14 +174,6 @@ export function SessionControls({
       coordinateGetter: sortableKeyboardCoordinates,
     })
   );
-
-  const formatStepName = (step: SessionStep): string => {
-    return step
-      .replace(/_/g, ' ')
-      .split(' ')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' ');
-  };
 
   const handleDragStart = (event: DragStartEvent) => {
     const { active } = event;
@@ -268,9 +275,16 @@ export function SessionControls({
             {/* Available Steps Section */}
             <div>
               <h4 className="text-sm font-semibold text-foreground mb-3">Available Steps</h4>
-              <div className="flex flex-wrap gap-2">
-                {sessionSteps.map((step) => (
-                  <DraggableStepCard key={step} step={step} />
+              <div className="space-y-4">
+                {stepCategories.map((category) => (
+                  <div key={category.name}>
+                    <h5 className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wider">{category.name}</h5>
+                    <div className="flex flex-wrap gap-2">
+                      {category.steps.map((step) => (
+                        <DraggableStepCard key={step} step={step} />
+                      ))}
+                    </div>
+                  </div>
                 ))}
               </div>
             </div>

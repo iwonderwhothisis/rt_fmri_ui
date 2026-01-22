@@ -63,10 +63,29 @@ steps:
     terminal: "murfi"
     command: "source feedback.sh ${participantId} register"
 
-  feedback:
-    name: "Feedback"
+  feedback_no_15:
+    name: "No Feedback (15 min)"
     terminal: "psychopy"
     command: "python rt-network_feedback.py ${participantId} ${runNumber} ${displayFeedback} ${feedbackCondition} ${participantAnchor}"
+    murfi_command: "source feedback.sh ${participantId} feedback"
+
+  feedback_no_30:
+    name: "No Feedback (30 min)"
+    terminal: "psychopy"
+    command: "python rt-network_feedback.py ${participantId} ${runNumber} ${displayFeedback} ${feedbackCondition} ${participantAnchor}"
+    murfi_command: "source feedback.sh ${participantId} feedback"
+
+  feedback_yes_15:
+    name: "Feedback (15 min)"
+    terminal: "psychopy"
+    command: "python rt-network_feedback.py ${participantId} ${runNumber} ${displayFeedback} ${feedbackCondition} ${participantAnchor}"
+    murfi_command: "source feedback.sh ${participantId} feedback"
+
+  feedback_yes_30:
+    name: "Feedback (30 min)"
+    terminal: "psychopy"
+    command: "python rt-network_feedback.py ${participantId} ${runNumber} ${displayFeedback} ${feedbackCondition} ${participantAnchor}"
+    murfi_command: "source feedback.sh ${participantId} feedback"
 
   cleanup:
     name: "Cleanup"

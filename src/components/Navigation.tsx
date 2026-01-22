@@ -1,6 +1,6 @@
 import { NavLink } from '@/components/NavLink';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
-import { Activity, Brain, HelpCircle, Users } from 'lucide-react';
+import { Activity, Brain, HelpCircle } from 'lucide-react';
 import {
   Tooltip,
   TooltipContent,
@@ -37,15 +37,6 @@ export function Navigation() {
                   <Activity className="h-4 w-4" />
                   <span className="hidden sm:inline">Run Scan</span>
                   <span className="sm:hidden">Run</span>
-                </NavLink>
-                <NavLink
-                  to="/participants"
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 text-muted-foreground hover:text-foreground hover:bg-secondary/50 active:scale-95"
-                  activeClassName="bg-primary/10 text-primary hover:bg-primary/10 shadow-sm"
-                >
-                  <Users className="h-4 w-4" />
-                  <span className="hidden sm:inline">Edit Participants</span>
-                  <span className="sm:hidden">Participants</span>
                 </NavLink>
               </div>
             </div>

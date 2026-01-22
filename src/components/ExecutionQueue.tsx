@@ -37,6 +37,13 @@ export function QueueItemCard({ item, onRemove }: QueueItemCardProps) {
   };
 
   const formatStepName = (step: SessionStep): string => {
+    // Handle special step names
+    if (step === 'feedback_no_15') return 'No Feedback (15 min)';
+    if (step === 'feedback_no_30') return 'No Feedback (30 min)';
+    if (step === 'feedback_yes_15') return 'Feedback (15 min)';
+    if (step === 'feedback_yes_30') return 'Feedback (30 min)';
+
+    // Default formatting: replace underscores and capitalize
     return step
       .replace(/_/g, ' ')
       .split(' ')

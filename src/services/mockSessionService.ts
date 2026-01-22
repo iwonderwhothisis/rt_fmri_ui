@@ -1,5 +1,4 @@
-import { Participant, Session, SessionStep, SessionStepHistory } from '@/types/session';
-import { buildApiUrl } from '@/lib/apiBase';
+import { Session, SessionStep, SessionStepHistory } from '@/types/session';
 
 // Mock previous sessions (sessions still use in-memory storage)
 const mockPreviousSessions: Session[] = [
@@ -10,9 +9,7 @@ const mockPreviousSessions: Session[] = [
       sessionDate: '2024-11-15',
       protocol: 'DMN-NFB',
       psychopyConfig: {
-        displayFeedback: 'Feedback',
         participantAnchor: 'toe' as const,
-        feedbackCondition: '15min' as const,
       },
     },
     status: 'completed',
@@ -27,72 +24,6 @@ const mockPreviousSessions: Session[] = [
 ];
 
 export const sessionService = {
-  // Get all participants from CSV via API
-  getParticipants: async (): Promise<Participant[]> => {
-    const response = await fetch(buildApiUrl('/api/participants'));
-    if (!response.ok) {
-      throw new Error('Failed to fetch participants');
-    }
-    return response.json();
-  },
-
-  // Get participant by ID from CSV via API
-  getParticipant: async (id: string): Promise<Participant | undefined> => {
-    const response = await fetch(buildApiUrl(`/api/participants/${id}`));
-    if (response.status === 404) {
-      return undefined;
-    }
-    if (!response.ok) {
-      throw new Error('Failed to fetch participant');
-    }
-    return response.json();
-  },
-
-  // Create new participant in CSV via API
-  createParticipant: async (participant: Participant): Promise<Participant> => {
-    const response = await fetch(buildApiUrl('/api/participants'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(participant),
-    });
-    if (response.status === 409) {
-      throw new Error('Participant ID already exists');
-    }
-    if (!response.ok) {
-      throw new Error('Failed to create participant');
-    }
-    return response.json();
-  },
-
-  // Update participant in CSV via API (anchor only, ID is immutable)
-  updateParticipant: async (id: string, updates: { anchor?: string }): Promise<Participant> => {
-    const response = await fetch(buildApiUrl(`/api/participants/${id}`), {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updates),
-    });
-    if (response.status === 404) {
-      throw new Error('Participant not found');
-    }
-    if (!response.ok) {
-      throw new Error('Failed to update participant');
-    }
-    return response.json();
-  },
-
-  // Delete participant from CSV via API
-  deleteParticipant: async (id: string): Promise<void> => {
-    const response = await fetch(buildApiUrl(`/api/participants/${id}`), {
-      method: 'DELETE',
-    });
-    if (response.status === 404) {
-      throw new Error('Participant not found');
-    }
-    if (!response.ok) {
-      throw new Error('Failed to delete participant');
-    }
-  },
-
   // Get previous sessions
   getPreviousSessions: async (): Promise<Session[]> => {
     await new Promise(resolve => setTimeout(resolve, 300));

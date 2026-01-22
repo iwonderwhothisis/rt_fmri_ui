@@ -1,43 +1,31 @@
 import { ReactNode } from 'react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { PsychoPyConfig, FeedbackCondition } from '@/types/session';
+import { PsychoPyConfig } from '@/types/session';
 
 interface PsychoPyConfigProps {
   config: PsychoPyConfig;
+  participantId: string;
   onChange: (config: PsychoPyConfig) => void;
+  onParticipantIdChange: (participantId: string) => void;
   actionButton?: ReactNode;
 }
 
-export function PsychoPyConfigComponent({ config, onChange, actionButton }: PsychoPyConfigProps) {
+export function PsychoPyConfigComponent({ config, participantId, onChange, onParticipantIdChange, actionButton }: PsychoPyConfigProps) {
   return (
     <div>
-      <h3 className="text-lg font-semibold mb-4 text-foreground">PsychoPy Configuration</h3>
+      <h3 className="text-lg font-semibold mb-4 text-foreground">Session Configuration</h3>
 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="feedback">Display Feedback</Label>
-          <Select
-            value={config.displayFeedback}
-            onValueChange={(value: 'No Feedback' | 'Feedback') =>
-              onChange({ ...config, displayFeedback: value })
-            }
-          >
-            <SelectTrigger id="feedback" className="bg-input border-border">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className="bg-popover border-border">
-              <SelectItem value="No Feedback">No Feedback</SelectItem>
-              <SelectItem value="Feedback">Feedback</SelectItem>
-            </SelectContent>
-          </Select>
+          <Label htmlFor="participantId">Participant ID</Label>
+          <Input
+            id="participantId"
+            value={participantId}
+            onChange={(e) => onParticipantIdChange(e.target.value)}
+            placeholder="e.g., remind0001"
+            className="bg-input border-border"
+          />
         </div>
 
         <div className="space-y-2">
@@ -53,30 +41,9 @@ export function PsychoPyConfigComponent({ config, onChange, actionButton }: Psyc
           />
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="condition">Feedback Condition</Label>
-          <Select
-            value={config.feedbackCondition}
-            onValueChange={(value: FeedbackCondition) =>
-              onChange({ ...config, feedbackCondition: value })
-            }
-          >
-            <SelectTrigger id="condition" className="bg-input border-border">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className="bg-popover border-border">
-              <SelectItem value="5min">5 minutes</SelectItem>
-              <SelectItem value="10min">10 minutes</SelectItem>
-              <SelectItem value="15min">15 minutes</SelectItem>
-              <SelectItem value="20min">20 minutes</SelectItem>
-              <SelectItem value="30min">30 minutes</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
         {/* Action button slot - aligns with the second column */}
         {actionButton && (
-          <div className="flex items-end">
+          <div className="col-span-2 flex justify-end mt-2">
             {actionButton}
           </div>
         )}
