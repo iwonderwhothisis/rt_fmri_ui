@@ -69,6 +69,10 @@ export class TerminalManager {
 
     this.sessions.set(id, session);
 
+    // Initialize shell with set +e to prevent exit-on-error behavior
+    // This ensures commands can fail without crashing the terminal
+    ptyProcess.write('set +e\r');
+
     // Send initial command after a brief delay for shell startup
     if (initialCommand) {
       setTimeout(() => {
@@ -95,8 +99,11 @@ export class TerminalManager {
       return;
     }
 
-    // Wrap command to output exit code with unique marker when done
-    const wrappedCommand = `${command}; echo "${COMMAND_MARKER_PREFIX}${commandId}:$?"`;
+    // Wrap command in a subshell with set +e to prevent shell exit on error
+    // The subshell isolates the command execution and prevents it from killing the parent shell
+    // set +e disables exit-on-error behavior for that subshell
+    // The exit code is captured correctly via $? before the echo command
+    const wrappedCommand = `(set +e; ${command}; echo "${COMMAND_MARKER_PREFIX}${commandId}:$?")`;
 
     console.log(`[TerminalManager] Executing tracked command ${commandId}: ${command}`);
     session.pty.write(wrappedCommand + '\r');
