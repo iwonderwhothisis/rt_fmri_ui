@@ -16,6 +16,7 @@ import { ArrowRight, Loader2, Terminal } from 'lucide-react';
 import { QueueItem } from '@/components/ExecutionQueue';
 import { Badge } from '@/components/ui/badge';
 import { buildApiUrl } from '@/lib/apiBase';
+import { useSessionPersistence, mapToArray, arrayToMap } from '@/hooks/useSessionPersistence';
 
 export const sessionSteps: SessionStep[] = [
   '2vol',
@@ -63,6 +64,97 @@ export default function RunScan() {
   const [commandsConfig, setCommandsConfig] = useState<CommandsConfig | null>(null);
   const murfiTerminalRef = useRef<TerminalHandle | null>(null);
   const psychopyTerminalRef = useRef<TerminalHandle | null>(null);
+
+  // Session persistence
+  const { loadState, saveState, clearState } = useSessionPersistence();
+  const hasRestoredRef = useRef(false);
+
+  // Restore state from sessionStorage on mount
+  useEffect(() => {
+    if (hasRestoredRef.current) return;
+    hasRestoredRef.current = true;
+
+    const persisted = loadState();
+    if (persisted) {
+      console.log('[RunScan] Restoring persisted session state');
+      
+      // Restore session configuration
+      setSessionConfig(persisted.sessionConfig);
+      setSessionId(persisted.sessionId);
+      setSessionStartTime(persisted.sessionStartTime);
+      setParticipantId(persisted.participantId);
+      setPsychopyConfig(persisted.psychopyConfig);
+
+      // Restore workflow progress
+      setSessionInitialized(persisted.sessionInitialized);
+      setInitializeConfirmed(persisted.initializeConfirmed);
+      setSetupCompleted(persisted.setupCompleted);
+      setManualWorkflowStep(persisted.manualWorkflowStep);
+      
+      // Restore terminal started flags - this will trigger terminal reconnection
+      if (persisted.murfiStarted) {
+        setMurfiStarted(true);
+        setMurfiSessionActive(true);
+      }
+      if (persisted.psychopyStarted) {
+        setPsychopyStarted(true);
+        setPsychopySessionActive(true);
+      }
+
+      // Restore execution state
+      setStepHistory(persisted.stepHistory);
+      setStepExecutionCounts(arrayToMap(persisted.stepExecutionCounts));
+      setExecutionQueue(persisted.executionQueue);
+      setQueueStarted(persisted.queueStarted);
+      setQueueStopped(persisted.queueStopped);
+    }
+  }, [loadState]);
+
+  // Save state to sessionStorage when relevant state changes
+  useEffect(() => {
+    // Don't save until we've attempted to restore
+    if (!hasRestoredRef.current) return;
+
+    // Only save if there's something meaningful to save
+    if (!murfiStarted && !psychopyStarted && !sessionConfig && !participantId) return;
+
+    saveState({
+      sessionConfig,
+      sessionId,
+      sessionStartTime,
+      participantId,
+      psychopyConfig,
+      sessionInitialized,
+      initializeConfirmed,
+      setupCompleted,
+      manualWorkflowStep,
+      murfiStarted,
+      psychopyStarted,
+      stepHistory,
+      stepExecutionCounts: mapToArray(stepExecutionCounts),
+      executionQueue,
+      queueStarted,
+      queueStopped,
+    });
+  }, [
+    saveState,
+    sessionConfig,
+    sessionId,
+    sessionStartTime,
+    participantId,
+    psychopyConfig,
+    sessionInitialized,
+    initializeConfirmed,
+    setupCompleted,
+    manualWorkflowStep,
+    murfiStarted,
+    psychopyStarted,
+    stepHistory,
+    stepExecutionCounts,
+    executionQueue,
+    queueStarted,
+    queueStopped,
+  ]);
 
   // Determine workflow step based on state
   // Priority order: execute > configure > initialize
@@ -599,16 +691,24 @@ export default function RunScan() {
 
         await sessionService.createSession(session);
 
+        // Clear persisted state since session is complete
+        clearState();
+
         // Navigate to the session detail page
         navigate(`/session/${sessionId}`);
         return;
       } catch (error) {
         console.error('Error saving session:', error);
+        // Clear persisted state even if save fails
+        clearState();
         // Still navigate even if save fails
         navigate(`/session/${sessionId}`);
         return;
       }
     }
+
+    // Clear persisted state
+    clearState();
 
     // Reset everything
     setSessionConfig(null);
