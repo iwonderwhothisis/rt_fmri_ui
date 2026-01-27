@@ -40,12 +40,13 @@ interface SessionControlsProps {
   onClearQueue: () => void;
   onStop: () => void;
   onStartQueue: () => void;
+  onRestart: () => void;
 }
 
 // Step categories for organizing available steps
 const stepCategories: { name: string; steps: SessionStep[] }[] = [
   { name: 'Murfi', steps: ['2vol', 'resting_state', 'extract_rs_networks', 'process_roi_masks', 'register', 'cleanup'] },
-  { name: 'PsychoPy', steps: ['feedback_no_15', 'feedback_no_30', 'feedback_yes_15', 'feedback_yes_30'] },
+  { name: 'PsychoPy', steps: ['feedback_no_15', 'feedback_yes_15', 'feedback_no_30', 'feedback_yes_30'] },
 ];
 
 // Format step names for display
@@ -131,6 +132,7 @@ export function SessionControls({
   onClearQueue,
   onStop,
   onStartQueue,
+  onRestart,
 }: SessionControlsProps) {
   const isConfigValid = config?.participantId && config?.psychopyConfig;
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -281,7 +283,7 @@ export function SessionControls({
                 {stepCategories.map((category) => (
                   <div key={category.name} className="flex-1">
                     <h5 className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wider">{category.name}</h5>
-                    <div className="flex flex-wrap gap-2">
+                    <div className={cn('gap-2 grid w-fit', category.name === 'PsychoPy' ? 'grid-cols-2' : 'grid-cols-3')}>
                       {category.steps.map((step) => (
                         <DraggableStepCard key={step} step={step} />
                       ))}
@@ -348,18 +350,27 @@ export function SessionControls({
               </DroppableQueueZone>
             </div>
 
-            {/* Finish Button */}
+            {/* Finish & Restart Buttons */}
             {sessionInitialized && (
-              <div className="pt-4 border-t border-border">
+              <div className="pt-4 border-t border-border flex gap-3">
                 <Button
                   onClick={handleFinish}
                   disabled={isRunning}
                   variant="outline"
-                  className="w-full"
+                  className="flex-1"
                   size="lg"
                 >
                   <Check className="mr-2 h-4 w-4" />
                   Finish
+                </Button>
+                <Button
+                  onClick={onRestart}
+                  disabled={isRunning}
+                  variant="destructive"
+                  size="lg"
+                >
+                  <RotateCcw className="mr-2 h-4 w-4" />
+                  Restart
                 </Button>
               </div>
             )}
