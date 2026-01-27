@@ -46,7 +46,7 @@ interface SessionControlsProps {
 // Step categories for organizing available steps
 const stepCategories: { name: string; steps: SessionStep[] }[] = [
   { name: 'Murfi', steps: ['2vol', 'resting_state', 'extract_rs_networks', 'process_roi_masks', 'register', 'cleanup'] },
-  { name: 'PsychoPy', steps: ['feedback_no_15', 'feedback_no_30', 'feedback_yes_15', 'feedback_yes_30'] },
+  { name: 'PsychoPy', steps: ['feedback_no_15', 'feedback_yes_15', 'feedback_no_30', 'feedback_yes_30'] },
 ];
 
 // Format step names for display
@@ -283,7 +283,7 @@ export function SessionControls({
                 {stepCategories.map((category) => (
                   <div key={category.name} className="flex-1">
                     <h5 className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wider">{category.name}</h5>
-                    <div className="flex flex-wrap gap-2">
+                    <div className={cn('gap-2 grid w-fit', category.name === 'PsychoPy' ? 'grid-cols-2' : 'grid-cols-3')}>
                       {category.steps.map((step) => (
                         <DraggableStepCard key={step} step={step} />
                       ))}

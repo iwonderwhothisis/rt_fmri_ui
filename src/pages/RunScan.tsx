@@ -939,39 +939,49 @@ export default function RunScan() {
 
               {/* Terminals side by side */}
               <div className="mt-4 flex flex-col md:flex-row gap-4">
-                {murfiSessionActive && (
-                  <div className="space-y-2 flex-1">
-                    <div className="text-xs font-semibold text-foreground">Murfi</div>
-                    <div className="rounded-lg border border-border/60 overflow-hidden" style={{ height: '250px' }}>
-                      <XTerminal
-                        sessionId="murfi"
-                        onStatusChange={handleMurfiStatusChange}
-                        onReady={(handle) => {
-                          murfiTerminalRef.current = handle;
-                          registerTerminal('murfi', handle);
-                        }}
-                      />
+                {(murfiSessionActive || psychopySessionActive) ? (
+                  <>
+                    <div className="space-y-2 flex-1">
+                      <div className="text-xs font-semibold text-foreground">Murfi</div>
+                      {murfiSessionActive ? (
+                        <div className="rounded-lg border border-border/60 overflow-hidden" style={{ height: '250px' }}>
+                          <XTerminal
+                            sessionId="murfi"
+                            onStatusChange={handleMurfiStatusChange}
+                            onReady={(handle) => {
+                              murfiTerminalRef.current = handle;
+                              registerTerminal('murfi', handle);
+                            }}
+                          />
+                        </div>
+                      ) : (
+                        <div className="rounded-lg border border-dashed border-border/60 flex items-center justify-center text-muted-foreground" style={{ height: '250px' }}>
+                          <p className="text-sm">Not started</p>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                )}
-                {psychopySessionActive && (
-                  <div className="space-y-2 flex-1">
-                    <div className="text-xs font-semibold text-foreground">PsychoPy</div>
-                    <div className="rounded-lg border border-border/60 overflow-hidden" style={{ height: '250px' }}>
-                      <XTerminal
-                        sessionId="psychopy"
-                        onStatusChange={handlePsychoPyStatusChange}
-                        onReady={(handle) => {
-                          psychopyTerminalRef.current = handle;
-                          registerTerminal('psychopy', handle);
-                        }}
-                      />
+                    <div className="space-y-2 flex-1">
+                      <div className="text-xs font-semibold text-foreground">PsychoPy</div>
+                      {psychopySessionActive ? (
+                        <div className="rounded-lg border border-border/60 overflow-hidden" style={{ height: '250px' }}>
+                          <XTerminal
+                            sessionId="psychopy"
+                            onStatusChange={handlePsychoPyStatusChange}
+                            onReady={(handle) => {
+                              psychopyTerminalRef.current = handle;
+                              registerTerminal('psychopy', handle);
+                            }}
+                          />
+                        </div>
+                      ) : (
+                        <div className="rounded-lg border border-dashed border-border/60 flex items-center justify-center text-muted-foreground" style={{ height: '250px' }}>
+                          <p className="text-sm">Not started</p>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                )}
-                {/* Placeholder when no terminals are active */}
-                {!murfiSessionActive && !psychopySessionActive && (
-                  <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                  </>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-12 text-muted-foreground w-full">
                     <Terminal className="h-12 w-12 mb-4 opacity-30" />
                     <p className="text-sm">No active terminals</p>
                     <p className="text-xs mt-1">Start Murfi and PsychoPy to see terminals here</p>
