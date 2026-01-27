@@ -40,6 +40,7 @@ interface SessionControlsProps {
   onClearQueue: () => void;
   onStop: () => void;
   onStartQueue: () => void;
+  onRestart: () => void;
 }
 
 // Step categories for organizing available steps
@@ -131,6 +132,7 @@ export function SessionControls({
   onClearQueue,
   onStop,
   onStartQueue,
+  onRestart,
 }: SessionControlsProps) {
   const isConfigValid = config?.participantId && config?.psychopyConfig;
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -348,18 +350,27 @@ export function SessionControls({
               </DroppableQueueZone>
             </div>
 
-            {/* Finish Button */}
+            {/* Finish & Restart Buttons */}
             {sessionInitialized && (
-              <div className="pt-4 border-t border-border">
+              <div className="pt-4 border-t border-border flex gap-3">
                 <Button
                   onClick={handleFinish}
                   disabled={isRunning}
                   variant="outline"
-                  className="w-full"
+                  className="flex-1"
                   size="lg"
                 >
                   <Check className="mr-2 h-4 w-4" />
                   Finish
+                </Button>
+                <Button
+                  onClick={onRestart}
+                  disabled={isRunning}
+                  variant="destructive"
+                  size="lg"
+                >
+                  <RotateCcw className="mr-2 h-4 w-4" />
+                  Restart
                 </Button>
               </div>
             )}

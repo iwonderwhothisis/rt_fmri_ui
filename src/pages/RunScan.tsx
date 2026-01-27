@@ -738,6 +738,42 @@ export default function RunScan() {
     });
   };
 
+  const handleRestart = () => {
+    if (!window.confirm('Are you sure you want to restart? All current session progress will be lost.')) {
+      return;
+    }
+
+    // Clear persisted state
+    clearState();
+
+    // Reset everything
+    setSessionConfig(null);
+    setStepHistory([]);
+    setSessionInitialized(false);
+    setStepExecutionCounts(new Map());
+    setRunningSteps(new Set());
+    setExecutionQueue([]);
+    setQueueStarted(false);
+    setQueueStopped(false);
+    stoppedItemsRef.current.clear();
+    setIsRunning(false);
+    setManualWorkflowStep(null);
+    setMurfiStarted(false);
+    setPsychopyStarted(false);
+    setMurfiSessionActive(false);
+    setPsychopySessionActive(false);
+    setMurfiTerminalStatus('disconnected');
+    setPsychopyTerminalStatus('disconnected');
+    setInitializeConfirmed(false);
+    setSetupCompleted(false);
+    setSessionId(null);
+    setSessionStartTime(null);
+    setParticipantId('');
+    setPsychopyConfig({
+      participantAnchor: '',
+    });
+  };
+
   const handleWorkflowStepClick = (step: WorkflowStep) => {
     // Allow clicking on initialize step, configure step, or any completed step
     if (step === 'initialize' || step === 'configure' || completedSteps.includes(step)) {
@@ -873,6 +909,7 @@ export default function RunScan() {
                   onClearQueue={handleClearQueue}
                   onStop={handleStop}
                   onStartQueue={handleStartQueue}
+                  onRestart={handleRestart}
                 />
               </div>
             )}
