@@ -2,7 +2,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { X, GripVertical, Loader2, CheckCircle2, AlertCircle, Clock } from 'lucide-react';
+import { X, GripVertical, Loader2, CheckCircle2, Clock } from 'lucide-react';
 import { SessionStep } from '@/types/session';
 import { cn } from '@/lib/utils';
 import { useButtonCommand } from '@/hooks/useButtonCommand';
@@ -71,11 +71,11 @@ export function QueueItemCard({ item, onRemove }: QueueItemCardProps) {
         };
       case 'failed':
         return {
-          icon: AlertCircle,
-          color: 'text-destructive',
-          bgColor: 'bg-destructive/20',
-          borderColor: 'border-destructive/30',
-          label: 'Failed',
+          icon: CheckCircle2,
+          color: 'text-success',
+          bgColor: 'bg-success/20',
+          borderColor: 'border-success/30',
+          label: 'Completed',
         };
       default:
         return {
@@ -96,22 +96,24 @@ export function QueueItemCard({ item, onRemove }: QueueItemCardProps) {
       ref={setNodeRef}
       style={style}
       className={cn(
-        'p-3 cursor-grab active:cursor-grabbing border-border hover:border-primary/50 transition-all shrink-0',
+        'p-3 border-border hover:border-primary/50 transition-all shrink-0',
         statusConfig.bgColor,
         statusConfig.borderColor,
         isDragging && 'opacity-50',
         item.status === 'running' && 'border-primary/50'
       )}
     >
-      <div
-        {...attributes}
-        {...listeners}
-        className="flex items-center gap-2"
-      >
-        <GripVertical className="h-4 w-4 text-muted-foreground" />
-        <span className="text-sm font-medium text-foreground flex-1">
-          {formatStepName(item.step)}
-        </span>
+      <div className="flex items-center gap-2">
+        <div
+          {...attributes}
+          {...listeners}
+          className="flex items-center gap-2 flex-1 cursor-grab active:cursor-grabbing"
+        >
+          <GripVertical className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm font-medium text-foreground">
+            {formatStepName(item.step)}
+          </span>
+        </div>
         <StatusIcon
           className={cn('h-3.5 w-3.5 flex-shrink-0', statusConfig.color, item.status === 'running' && 'animate-spin')}
         />
