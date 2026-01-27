@@ -1,0 +1,9 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Neuro-Orch
+Comment=Start neuro-orch development server
+Exec=/Users/philipmay/Documents/TUM/pmsd/Version 1/neuro-orch/scripts/start.sh
+Icon=utilities-terminal
+Terminal=true
+Categories=Development;
