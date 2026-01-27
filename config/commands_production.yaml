@@ -41,61 +41,61 @@ steps:
   2vol:
     name: "2 Volume Calibration"
     terminal: "murfi"
-    command: "export MURFI_SUBJECT_NAME=${participantId} && export MURFI_SUBJECTS_DIR=$(dirname $(pwd))/subjects/ && source feedback.sh ${participantId} 2vol"
+    command: "source feedback.sh ${participantId} 2vol"
 
   resting_state:
     name: "Resting State"
     terminal: "murfi"
-    command: "export MURFI_SUBJECT_NAME=${participantId} && export MURFI_SUBJECTS_DIR=$(dirname $(pwd))/subjects/ && source feedback.sh ${participantId} resting_state"
+    command: "source feedback.sh ${participantId} resting_state"
 
   extract_rs_networks:
     name: "Extract RS Networks"
     terminal: "murfi"
-    command: "export MURFI_SUBJECT_NAME=${participantId} && export MURFI_SUBJECTS_DIR=$(dirname $(pwd))/subjects/ && source feedback.sh ${participantId} extract_rs_networks"
+    command: "source feedback.sh ${participantId} extract_rs_networks"
 
   process_roi_masks:
     name: "Process ROI Masks"
     terminal: "murfi"
-    command: "export MURFI_SUBJECT_NAME=${participantId} && export MURFI_SUBJECTS_DIR=$(dirname $(pwd))/subjects/ && source feedback.sh ${participantId} process_roi_masks"
+    command: "source feedback.sh ${participantId} process_roi_masks"
 
   register:
     name: "Registration"
     terminal: "murfi"
-    command: "export MURFI_SUBJECT_NAME=${participantId} && export MURFI_SUBJECTS_DIR=$(dirname $(pwd))/subjects/ && source feedback.sh ${participantId} register"
+    command: "source feedback.sh ${participantId} register"
 
   feedback_no_15:
     name: "No Feedback (15 min)"
     terminal: "psychopy"
     command: "python rt-network_feedback.py '${participantId}' '${runNumber}' '${displayFeedback}' '${feedbackCondition}' '${participantAnchor}'"
-    murfi_command: "export MURFI_SUBJECT_NAME=${participantId} && export MURFI_SUBJECTS_DIR=$(dirname $(pwd))/subjects/ && source feedback.sh ${participantId} feedback"
+    murfi_command: "source feedback.sh ${participantId} feedback"
 
   feedback_no_30:
     name: "No Feedback (30 min)"
     terminal: "psychopy"
     command: "python rt-network_feedback.py '${participantId}' '${runNumber}' '${displayFeedback}' '${feedbackCondition}' '${participantAnchor}'"
-    murfi_command: "export MURFI_SUBJECT_NAME=${participantId} && export MURFI_SUBJECTS_DIR=$(dirname $(pwd))/subjects/ && source feedback.sh ${participantId} feedback"
+    murfi_command: "source feedback.sh ${participantId} feedback"
 
   feedback_yes_15:
     name: "Feedback (15 min)"
     terminal: "psychopy"
     command: "python rt-network_feedback.py '${participantId}' '${runNumber}' '${displayFeedback}' '${feedbackCondition}' '${participantAnchor}'"
-    murfi_command: "export MURFI_SUBJECT_NAME=${participantId} && export MURFI_SUBJECTS_DIR=$(dirname $(pwd))/subjects/ && source feedback.sh ${participantId} feedback"
+    murfi_command: "source feedback.sh ${participantId} feedback"
 
   feedback_yes_30:
     name: "Feedback (30 min)"
     terminal: "psychopy"
     command: "python rt-network_feedback.py '${participantId}' '${runNumber}' '${displayFeedback}' '${feedbackCondition}' '${participantAnchor}'"
-    murfi_command: "export MURFI_SUBJECT_NAME=${participantId} && export MURFI_SUBJECTS_DIR=$(dirname $(pwd))/subjects/ && source feedback.sh ${participantId} feedback"
+    murfi_command: "source feedback.sh ${participantId} feedback"
 
   cleanup:
     name: "Cleanup"
     terminal: "murfi"
-    command: "export MURFI_SUBJECT_NAME=${participantId} && export MURFI_SUBJECTS_DIR=$(dirname $(pwd))/subjects/ && source feedback.sh ${participantId} cleanup"
+    command: "source feedback.sh ${participantId} cleanup"
 
   backup_reg_mni_masks_to_2vol:
     name: "Backup Reg MNI Masks to 2vol"
     terminal: "murfi"
-    command: "export MURFI_SUBJECT_NAME=${participantId} && export MURFI_SUBJECTS_DIR=$(dirname $(pwd))/subjects/ && source feedback.sh ${participantId} backup_reg_mni_masks_to_2vol"
+    command: "source feedback.sh ${participantId} backup_reg_mni_masks_to_2vol"
 
 # Additional custom actions (optional)
 actions:
