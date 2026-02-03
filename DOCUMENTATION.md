@@ -209,14 +209,17 @@ COMMANDS_CONFIG=commands_production.yaml npm run dev
 
 ### YAML structure
 
-Each config file has four top-level sections:
+Each config file has these top-level sections:
 
 ```yaml
 systems:       # Terminal startup commands (murfi, psychopy)
-steps:         # Workflow step commands
+stepOrder:     # Array of step IDs defining execution order (categories derived from step.terminal)
+steps:         # Workflow step commands with name, terminal, and command
 buttons:       # Miscellaneous button commands
 defaults:      # Fallback behavior for unconfigured buttons
 ```
+
+The `stepOrder` array controls which steps appear in the execution queue UI and their order. Step categories (Murfi vs PsychoPy) are automatically derived from each step's `terminal` field.
 
 ### Variable substitution
 
@@ -268,11 +271,20 @@ steps:
     command: "echo 'Running step for ${participantId}'"
 ```
 
-The key (`my_new_step`) must be unique across all steps. In addition to the YAML change, you must update three frontend files:
+3. Add the step ID to the `stepOrder` array:
 
-- **`src/types/session.ts`** — Add the new key to the `SessionStep` union type.
-- **`src/pages/RunScan.tsx`** — Add an entry to the `sessionSteps` array.
-- **`src/components/SessionControls.tsx`** — Add the step to the appropriate category in `stepCategories`.
+```yaml
+stepOrder:
+  - '2vol'
+  - 'resting_state'
+  # ... existing steps ...
+  - 'my_new_step'    # Add your new step
+  - 'cleanup'
+```
+
+The key (`my_new_step`) must be unique across all steps. The step's UI category (Murfi or PsychoPy) is automatically determined by its `terminal` field.
+
+**Optional:** For TypeScript type safety, add the new key to the `SessionStep` union type in `src/types/session.ts`. This is optional but provides compile-time checking for valid step names.
 
 Restart the backend after editing the YAML config.
 
@@ -296,7 +308,9 @@ Edit the `command` (or `murfi_command`) value in the YAML file and restart the b
 
 #### Removing a step
 
-Delete the entire key block from the YAML file and restart the backend.
+1. Remove the step ID from the `stepOrder` array.
+2. Optionally delete the step's definition from the `steps:` section (or leave it for future use).
+3. Restart the backend.
 
 #### Tip: dev vs production
 
