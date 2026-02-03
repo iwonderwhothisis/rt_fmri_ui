@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -21,6 +21,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Play, RotateCcw, AlertCircle, Check, Square, GripVertical, Settings2 } from 'lucide-react';
 import { SessionConfig, SessionStep } from '@/types/session';
+import type { CommandsConfig, StepCategory } from '@/types/commands';
 import { QueueItem } from '@/components/ExecutionQueue';
 import { QueueItemCard } from '@/components/ExecutionQueue';
 import { cn } from '@/lib/utils';
@@ -31,6 +32,7 @@ interface SessionControlsProps {
   isRunning: boolean;
   sessionInitialized: boolean;
   sessionSteps: SessionStep[];
+  commandsConfig: CommandsConfig | null;
   queueItems: QueueItem[];
   onStart: () => void;
   onReset: () => void;
@@ -43,20 +45,14 @@ interface SessionControlsProps {
   onRestart: () => void;
 }
 
-// Step categories for organizing available steps
-const stepCategories: { name: string; steps: SessionStep[] }[] = [
+// Fallback step categories if config not loaded
+const defaultStepCategories: StepCategory[] = [
   { name: 'Murfi', steps: ['2vol', 'resting_state', 'extract_rs_networks', 'process_roi_masks', 'register', 'cleanup'] },
   { name: 'PsychoPy', steps: ['feedback_no_15', 'feedback_yes_15', 'feedback_no_30', 'feedback_yes_30'] },
 ];
 
-// Format step names for display
-const formatStepName = (step: SessionStep): string => {
-  // Handle special step names
-  if (step === 'feedback_no_15') return 'No Feedback (15 min)';
-  if (step === 'feedback_no_30') return 'No Feedback (30 min)';
-  if (step === 'feedback_yes_15') return 'Feedback (15 min)';
-  if (step === 'feedback_yes_30') return 'Feedback (30 min)';
-
+// Format step names for display - fallback formatting when config not available
+const formatStepNameFallback = (step: string): string => {
   // Default formatting: replace underscores and capitalize
   return step
     .replace(/_/g, ' ')
@@ -65,7 +61,7 @@ const formatStepName = (step: SessionStep): string => {
     .join(' ');
 };
 
-function DraggableStepCard({ step }: { step: SessionStep }) {
+function DraggableStepCard({ step, getStepName }: { step: SessionStep; getStepName: (step: string) => string }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: `step-${step}`,
     data: { type: 'step', step },
@@ -93,7 +89,7 @@ function DraggableStepCard({ step }: { step: SessionStep }) {
       >
         <GripVertical className="h-4 w-4 text-muted-foreground" />
         <span className="text-sm font-medium text-foreground flex-1">
-          {formatStepName(step)}
+          {getStepName(step)}
         </span>
       </div>
     </Card>
@@ -123,6 +119,7 @@ export function SessionControls({
   isRunning,
   sessionInitialized,
   sessionSteps,
+  commandsConfig,
   queueItems,
   onStart,
   onReset,
@@ -137,6 +134,45 @@ export function SessionControls({
   const isConfigValid = config?.participantId && config?.psychopyConfig;
   const [activeId, setActiveId] = useState<string | null>(null);
   const [draggedStep, setDraggedStep] = useState<SessionStep | null>(null);
+
+  // Derive step categories from step terminal fields
+  const stepCategories = useMemo((): StepCategory[] => {
+    if (!commandsConfig?.steps || sessionSteps.length === 0) {
+      return defaultStepCategories;
+    }
+
+    // Group steps by their terminal field
+    const terminalGroups: Record<string, string[]> = {};
+
+    for (const step of sessionSteps) {
+      const stepConfig = commandsConfig.steps[step];
+      if (stepConfig) {
+        const terminal = stepConfig.terminal;
+        if (!terminalGroups[terminal]) {
+          terminalGroups[terminal] = [];
+        }
+        terminalGroups[terminal].push(step);
+      }
+    }
+
+    // Convert to StepCategory array, using system names from config
+    return Object.entries(terminalGroups).map(([terminal, steps]) => ({
+      name: commandsConfig.systems[terminal]?.name || terminal.charAt(0).toUpperCase() + terminal.slice(1),
+      steps,
+    }));
+  }, [commandsConfig?.steps, commandsConfig?.systems, sessionSteps]);
+
+  // Get step display name from config, with fallback formatting
+  const getStepName = useMemo(() => {
+    return (step: string): string => {
+      // Try to get name from config
+      if (commandsConfig?.steps[step]?.name) {
+        return commandsConfig.steps[step].name;
+      }
+      // Fall back to default formatting
+      return formatStepNameFallback(step);
+    };
+  }, [commandsConfig?.steps]);
 
   const startCmd = useButtonCommand('session.start');
   const resetCmd = useButtonCommand('session.reset');
@@ -285,7 +321,7 @@ export function SessionControls({
                     <h5 className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wider">{category.name}</h5>
                     <div className={cn('gap-2 grid w-fit', category.name === 'PsychoPy' ? 'grid-cols-2' : 'grid-cols-3')}>
                       {category.steps.map((step) => (
-                        <DraggableStepCard key={step} step={step} />
+                        <DraggableStepCard key={step} step={step as SessionStep} getStepName={getStepName} />
                       ))}
                     </div>
                   </div>
@@ -342,6 +378,7 @@ export function SessionControls({
                           key={item.id}
                           item={item}
                           onRemove={onRemoveFromQueue}
+                          getStepName={getStepName}
                         />
                       ))}
                     </div>
@@ -392,7 +429,7 @@ export function SessionControls({
             <div className="flex items-center gap-2">
               <GripVertical className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm font-medium text-foreground">
-                {formatStepName(draggedStep)}
+                {getStepName(draggedStep)}
               </span>
             </div>
           </Card>

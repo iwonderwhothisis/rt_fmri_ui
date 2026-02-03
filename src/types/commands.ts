@@ -11,6 +11,11 @@ export interface StepConfig {
   murfi_command?: string;  // Optional command to run on murfi terminal (for psychopy steps that also need murfi)
 }
 
+export interface StepCategory {
+  name: string;
+  steps: string[];
+}
+
 export interface ActionConfig {
   name: string;
   terminals: ('murfi' | 'psychopy')[];
@@ -31,6 +36,7 @@ export interface ButtonDefaults {
 export interface CommandsConfig {
   systems: Record<string, SystemConfig>;
   steps: Record<string, StepConfig>;
+  stepOrder?: string[];  // Order of steps in the execution queue UI (categories derived from step.terminal)
   actions?: Record<string, ActionConfig>;
   buttons?: Record<string, ButtonConfig>;
   defaults?: {
