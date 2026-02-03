@@ -14,6 +14,22 @@ systems:
     description: "Task presentation system"
     startCommand: "psychopy"
 
+# Step execution order - defines the order steps appear in the UI
+# Only steps listed here will be available in the execution queue
+# Categories are automatically derived from each step's "terminal" field
+stepOrder:
+  - '2vol'
+  - 'resting_state'
+  - 'extract_rs_networks'
+  - 'process_roi_masks'
+  - 'register'
+  - 'feedback_no_15'
+  - 'feedback_no_30'
+  - 'feedback_yes_15'
+  - 'feedback_yes_30'
+  - 'cleanup'
+  #- 'backup_reg_mni_masks_to_2vol'
+
 # Session step commands
 # These run when steps are executed from the queue
 # terminal: which terminal to run the command in (murfi or psychopy)
@@ -39,7 +55,7 @@ steps:
     command: "export MURFI_SUBJECT_NAME=${participantId} && export MURFI_SUBJECTS_DIR=$(dirname $(pwd))/subjects/ && source feedback.sh ${participantId} setup"
 
   2vol:
-    name: "2 Volume Calibration"
+    name: "2 Vol"
     terminal: "murfi"
     command: "export MURFI_SUBJECT_NAME=${participantId} && export MURFI_SUBJECTS_DIR=$(dirname $(pwd))/subjects/ && source feedback.sh ${participantId} 2vol"
 
@@ -92,10 +108,10 @@ steps:
     terminal: "murfi"
     command: "export MURFI_SUBJECT_NAME=${participantId} && export MURFI_SUBJECTS_DIR=$(dirname $(pwd))/subjects/ && source feedback.sh ${participantId} cleanup"
 
-  backup_reg_mni_masks_to_2vol:
-    name: "Backup Reg MNI Masks to 2vol"
-    terminal: "murfi"
-    command: "export MURFI_SUBJECT_NAME=${participantId} && export MURFI_SUBJECTS_DIR=$(dirname $(pwd))/subjects/ && source feedback.sh ${participantId} backup_reg_mni_masks_to_2vol"
+  # backup_reg_mni_masks_to_2vol:
+  #   name: "Backup Reg MNI Masks to 2vol"
+  #   terminal: "murfi"
+  #   command: "export MURFI_SUBJECT_NAME=${participantId} && export MURFI_SUBJECTS_DIR=$(dirname $(pwd))/subjects/ && source feedback.sh ${participantId} backup_reg_mni_masks_to_2vol"
 
 # Additional custom actions (optional)
 actions:

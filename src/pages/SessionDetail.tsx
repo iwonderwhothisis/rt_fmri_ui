@@ -2,14 +2,11 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Session } from '@/types/session';
 import { sessionService } from '@/services/mockSessionService';
-import { ArrowLeft, Calendar, Clock, User, CheckCircle2, AlertCircle, BarChart3, Brain } from 'lucide-react';
+import { ArrowLeft, Clock, User, CheckCircle2, AlertCircle, BarChart3 } from 'lucide-react';
 import { StepHistory } from '@/components/StepHistory';
-import { BrainActivationMap } from '@/components/BrainActivationMap';
-import { SessionAnalytics } from '@/components/SessionAnalytics';
 
 export default function SessionDetail() {
   const { sessionId } = useParams();
@@ -85,20 +82,14 @@ export default function SessionDetail() {
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-[1800px] mx-auto space-y-6">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-              Session {session.id}
-            </h1>
-            <p className="text-muted-foreground mt-1">Detailed analysis and reports</p>
-          </div>
-
-          <div className="flex gap-2">
-            <Button variant="ghost" onClick={() => navigate('/')}>
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Run Scan
-            </Button>
-          </div>
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+            Session {session.id}
+          </h1>
+          <Button variant="ghost" onClick={() => navigate('/')}>
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Run Scan
+          </Button>
         </div>
 
         {/* Dashboard Metrics */}
@@ -134,8 +125,15 @@ export default function SessionDetail() {
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-sm text-muted-foreground mb-1">Progress</div>
-                <div className="text-2xl font-bold text-foreground">
-                  {completedSteps} / {totalSteps}
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl font-bold text-foreground">
+                    {completedSteps} / {totalSteps}
+                  </span>
+                  {failedSteps > 0 && (
+                    <Badge variant="outline" className="bg-destructive/20 text-destructive border-destructive/30 text-xs">
+                      {failedSteps} failed
+                    </Badge>
+                  )}
                 </div>
                 <div className="text-xs text-muted-foreground mt-1">steps completed</div>
               </div>
@@ -176,39 +174,17 @@ export default function SessionDetail() {
           </Card>
         </div>
 
-        {/* Session Overview Cards */}
+        {/* Step History */}
         <Card className="p-6 bg-card border-border">
-          <h3 className="text-lg font-semibold mb-4 text-foreground flex items-center gap-2">
+          <div className="flex items-center gap-2 mb-4">
             <BarChart3 className="h-5 w-5 text-primary" />
-            Session Analytics
-          </h3>
-          <SessionAnalytics session={session} />
+            <h3 className="text-lg font-semibold text-foreground">Step History</h3>
+            <Badge variant="outline" className="ml-1 text-xs">
+              {totalSteps}
+            </Badge>
+          </div>
+          <StepHistory history={session.stepHistory} />
         </Card>
-
-        {/* Detailed Tabs */}
-        <Tabs defaultValue="steps" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="steps" className="flex items-center gap-2">
-              <BarChart3 className="h-4 w-4" />
-              <span>Step History</span>
-              <Badge variant="outline" className="ml-2 text-xs">
-                {totalSteps}
-              </Badge>
-            </TabsTrigger>
-            <TabsTrigger value="brain" className="flex items-center gap-2">
-              <Brain className="h-4 w-4" />
-              <span>Brain Activation</span>
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="steps" className="mt-6">
-            <StepHistory history={session.stepHistory} />
-          </TabsContent>
-
-          <TabsContent value="brain" className="mt-6">
-            <BrainActivationMap sessionId={session.id} />
-          </TabsContent>
-        </Tabs>
       </div>
     </div>
   );

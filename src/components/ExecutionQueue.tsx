@@ -16,9 +16,19 @@ export interface QueueItem {
 interface QueueItemCardProps {
   item: QueueItem;
   onRemove: (id: string) => void;
+  getStepName?: (step: string) => string;
 }
 
-export function QueueItemCard({ item, onRemove }: QueueItemCardProps) {
+// Default fallback for step name formatting
+const formatStepNameDefault = (step: string): string => {
+  return step
+    .replace(/_/g, ' ')
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+};
+
+export function QueueItemCard({ item, onRemove, getStepName }: QueueItemCardProps) {
   const {
     attributes,
     listeners,
@@ -36,20 +46,8 @@ export function QueueItemCard({ item, onRemove }: QueueItemCardProps) {
     opacity: isDragging ? 0.5 : 1,
   };
 
-  const formatStepName = (step: SessionStep): string => {
-    // Handle special step names
-    if (step === 'feedback_no_15') return 'No Feedback (15 min)';
-    if (step === 'feedback_no_30') return 'No Feedback (30 min)';
-    if (step === 'feedback_yes_15') return 'Feedback (15 min)';
-    if (step === 'feedback_yes_30') return 'Feedback (30 min)';
-
-    // Default formatting: replace underscores and capitalize
-    return step
-      .replace(/_/g, ' ')
-      .split(' ')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' ');
-  };
+  // Use provided getStepName or fall back to default
+  const formatStepName = getStepName || formatStepNameDefault;
 
   const getStatusConfig = () => {
     switch (item.status) {
