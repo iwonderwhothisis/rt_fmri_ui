@@ -92,7 +92,7 @@ COMMANDS_CONFIG=commands_production.yaml ./scripts/start.sh
 
 ### c-Brain Lab Laptop
 
-On the c-Brain lab laptop a shell alias is already configured. Simply open a terminal and type:
+On the c-Brain lab laptop a shell alias is already configured. Open a terminal and type:
 
 ```bash
 nfb
