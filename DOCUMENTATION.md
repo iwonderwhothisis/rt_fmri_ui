@@ -1,6 +1,6 @@
 # Neuro-Orch — CBRAIN rt-fMRI Control System
 
-Comprehensive documentation for the Neuro-Orch platform, a full-stack web application for managing real-time fMRI neurofeedback sessions as part of the SMART-Kids research project at TUM.
+Comprehensive documentation for the Neuro-Orch platform, a full-stack web application for managing real-time fMRI neurofeedback sessions as part of the SMART-Kids research project at LMU.
 
 ---
 
