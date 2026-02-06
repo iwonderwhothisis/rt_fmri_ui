@@ -90,6 +90,16 @@ To use production commands instead of development echo stubs:
 COMMANDS_CONFIG=commands_production.yaml ./scripts/start.sh
 ```
 
+### c-Brain Lab Laptop
+
+On the c-Brain lab laptop a shell alias is already configured. Simply open a terminal and type:
+
+```bash
+nfb
+```
+
+This launches the application with the production configuration (`commands_production.yaml`), equivalent to running `COMMANDS_CONFIG=commands_production.yaml ./scripts/start.sh`.
+
 ### Manual start
 
 ```bash
@@ -131,35 +141,43 @@ The application follows a guided 3-step workflow: **Initialize → Configure →
 
 <!-- Screenshot: Landing page — the Run Scan view with the 3-step workflow stepper -->
 
+![Landing page — the Run Scan view with the 3-step workflow stepper](docs/Screenshots/Screenshot%20from%202026-02-03%2010-21-51.png)
+
 This is the main page. The top of the page shows a stepper indicating progress through the three phases.
 
 #### Step 1 — Initialize
 
 <!-- Screenshot: Initialize step — Start Murfi / Start PsychoPy buttons -->
+![](docs/Screenshots/Screenshot%20from%202026-02-03%2010-22-31.png)
 
 Two buttons launch the Murfi and PsychoPy terminal sessions. Each button opens a WebSocket-backed PTY terminal in the browser. Both systems must be started before proceeding.
 
 #### Step 2 — Configure
 
 <!-- Screenshot: Participant selection and session configuration form -->
+![](docs/Screenshots/Screenshot%20from%202026-02-03%2010-24-14.png)
+
 
 The operator enters:
-
-- **Participant ID** (e.g. `remind0001`)
+- **Participant ID** (e.g. `0001`)
 - **Participant anchor** (free text)
-- **Protocol** (e.g. `DMN-NFB`)
-- **Feedback condition** (`15min` or `30min`)
+
 
 Two setup commands run in sequence:
 
 1. **Create Participant** — runs `createxml.sh` (or its echo stub in dev)
 2. **Setup Session** — runs `feedback.sh setup`
 
-Once both complete successfully the session starts and the workflow advances.
+Once the Setup session has been ran the Start session and continue button can be pressed
 
 #### Step 3 — Execute
 
 <!-- Screenshot: Execution queue with drag-and-drop step cards -->
+
+![](docs/Screenshots/Screenshot%20from%202026-02-03%2010-24-51.png)
+
+![](docs/Screenshots/Screenshot%20from%202026-02-03%2010-37-35.png)
+
 
 Available workflow steps can be dragged into an execution queue and reordered. Steps include:
 
@@ -172,19 +190,23 @@ Available workflow steps can be dragged into an execution queue and reordered. S
 | Registration | Anatomical registration |
 | Feedback (Yes/No × 15/30 min) | Four feedback condition variants |
 | Cleanup | Post-session cleanup |
-| Backup Reg MNI Masks to 2vol | Backup registration masks |
 
-<!-- Screenshot: Terminal panel showing live command output -->
+Clicking "run next" will run the next step in the queue. 
+Reset will take you back to the landing page 
 
-The embedded terminal panel shows real-time output from the running commands.
 
-<!-- Screenshot: Step pipeline and execution history with status indicators -->
+UI elements will appear in new windows on top of the web app, use as before in the previous implementation then close when done 
+![](docs/Screenshots/Screenshot%20from%202026-02-03%2010-27-14.png)
 
-The step pipeline shows queued, running, completed, and failed steps. The history panel records every executed step with its exit code.
+Once all steps have been completed, click finish to proceed to the session detail page 
 
-### Session Detail Page (`/session/:sessionId`)
+In the event of an error the terminal outputs will provide the details for debugging.  
+
+### Session Detail Page 
 
 <!-- Screenshot: Session detail view showing completed session summary -->
+
+![](docs/Screenshots/Screenshot%20from%202026-02-03%2010-47-50.png)
 
 After finishing a session, its full history (steps executed, timestamps, outcomes) can be reviewed on this page.
 
@@ -209,17 +231,14 @@ COMMANDS_CONFIG=commands_production.yaml npm run dev
 
 ### YAML structure
 
-Each config file has these top-level sections:
+Each config file has four top-level sections:
 
 ```yaml
 systems:       # Terminal startup commands (murfi, psychopy)
-stepOrder:     # Array of step IDs defining execution order (categories derived from step.terminal)
-steps:         # Workflow step commands with name, terminal, and command
+steps:         # Workflow step commands
 buttons:       # Miscellaneous button commands
 defaults:      # Fallback behavior for unconfigured buttons
 ```
-
-The `stepOrder` array controls which steps appear in the execution queue UI and their order. Step categories (Murfi vs PsychoPy) are automatically derived from each step's `terminal` field.
 
 ### Variable substitution
 
@@ -271,20 +290,11 @@ steps:
     command: "echo 'Running step for ${participantId}'"
 ```
 
-3. Add the step ID to the `stepOrder` array:
+The key (`my_new_step`) must be unique across all steps. In addition to the YAML change, you must update three frontend files:
 
-```yaml
-stepOrder:
-  - '2vol'
-  - 'resting_state'
-  # ... existing steps ...
-  - 'my_new_step'    # Add your new step
-  - 'cleanup'
-```
-
-The key (`my_new_step`) must be unique across all steps. The step's UI category (Murfi or PsychoPy) is automatically determined by its `terminal` field.
-
-**Optional:** For TypeScript type safety, add the new key to the `SessionStep` union type in `src/types/session.ts`. This is optional but provides compile-time checking for valid step names.
+- **`src/types/session.ts`** — Add the new key to the `SessionStep` union type.
+- **`src/pages/RunScan.tsx`** — Add an entry to the `sessionSteps` array.
+- **`src/components/SessionControls.tsx`** — Add the step to the appropriate category in `stepCategories`.
 
 Restart the backend after editing the YAML config.
 
@@ -308,9 +318,7 @@ Edit the `command` (or `murfi_command`) value in the YAML file and restart the b
 
 #### Removing a step
 
-1. Remove the step ID from the `stepOrder` array.
-2. Optionally delete the step's definition from the `steps:` section (or leave it for future use).
-3. Restart the backend.
+Delete the entire key block from the YAML file and restart the backend.
 
 #### Tip: dev vs production
 
