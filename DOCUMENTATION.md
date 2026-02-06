@@ -76,7 +76,7 @@ A clean run with no errors confirms the project is set up correctly.
 
 ## Running the Application
 
-### Quick start (recommended)
+### Quick start
 
 The included launch script installs dependencies if needed, starts both servers, and opens the browser automatically:
 
@@ -90,7 +90,7 @@ To use production commands instead of development echo stubs:
 COMMANDS_CONFIG=commands_production.yaml ./scripts/start.sh
 ```
 
-### c-Brain Lab Laptop
+### c-Brain Lab Laptop Quick Start (recommended)
 
 On the c-Brain lab laptop a shell alias is already configured. Open a terminal and type:
 
@@ -100,13 +100,6 @@ nfb
 
 This launches the application with the production configuration (`commands_production.yaml`), equivalent to running `COMMANDS_CONFIG=commands_production.yaml ./scripts/start.sh`.
 
-### Manual start
-
-```bash
-npm run dev
-```
-
-This runs the frontend and backend concurrently with color-coded output.
 
 ### Available npm scripts
 
