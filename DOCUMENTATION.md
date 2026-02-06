@@ -99,6 +99,7 @@ nfb
 ```
 
 This launches the application with the production configuration (`commands_production.yaml`), equivalent to running `COMMANDS_CONFIG=commands_production.yaml ./scripts/start.sh`.
+A browser window will automatically open at the applications landing page 
 
 
 ### Available npm scripts
